@@ -30,5 +30,8 @@ fun main() {
     println("item: ${p0.valueInfo}")
     check(storage.items.size == 1)
     check(storage[p0.valueInfo.id]!!.value == "foo")
-    TODO()
+    val p1 = storage.add("bar")
+    println("item: ${p1.valueInfo}")
+    check(storage.items.size == 2)
+    check(storage[p1.valueInfo.id]!!.value == "bar")
 }

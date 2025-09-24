@@ -95,8 +95,12 @@ class RealSyncStorage<T : Any>(
 
     override fun get(id: UUID): Payload<T>? {
         streamer.reader().use { stream ->
-            for (i in 0 until stream.readInt()) {
-                if (id != stream.readUUID()) continue
+            for (index in 0 until stream.readInt()) {
+                if (id != stream.readUUID()) {
+                    stream.skip(16)
+                    stream.skip(stream.readInt().toLong())
+                    continue
+                }
                 val valueInfo = ValueInfo(
                     id = id,
                     created = stream.readLong().milliseconds,
