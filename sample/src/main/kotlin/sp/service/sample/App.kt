@@ -44,4 +44,9 @@ fun main() {
     checkNotNull(v1)
     check(storage.items.size == 3)
     check(storage[p1.valueInfo.id]!!.value == "qux")
+    //
+    check(storage.delete(p2.valueInfo.id))
+    check(storage.items.size == 2)
+    check(storage[p0.valueInfo.id]!!.value == "foo")
+    check(storage[p1.valueInfo.id]!!.value == "qux")
 }

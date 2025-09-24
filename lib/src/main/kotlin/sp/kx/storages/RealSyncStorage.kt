@@ -86,7 +86,16 @@ class RealSyncStorage<T : Any>(
     }
 
     override fun delete(id: UUID): Boolean {
-        TODO("delete")
+        val items = items.toMutableList()
+        for (index in items.indices) {
+            val it = items[index]
+            if (it.valueInfo.id == id) {
+                items.removeAt(index)
+                write(items = items)
+                return true
+            }
+        }
+        return false
     }
 
     override fun set(id: UUID, value: T): ValueState? {
