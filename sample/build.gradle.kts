@@ -24,5 +24,9 @@ tasks.getByName<KotlinCompile>("compileKotlin") {
 
 dependencies {
     implementation(project(":lib"))
+    implementation("com.github.kepocnhh:Bytes:0.4.1u-SNAPSHOT")
     implementation("com.github.kepocnhh:Storages:0.11.0u-SNAPSHOT")
+    implementation("com.github.kepocnhh:Hashes:0.0.1u-SNAPSHOT")
+    implementation("com.github.kepocnhh:Storages:0.11.0u-SNAPSHOT")
+    implementation("com.github.kepocnhh:Streamers:0.1.0-SNAPSHOT")
 }
