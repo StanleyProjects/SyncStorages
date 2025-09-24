@@ -26,6 +26,7 @@ fun main() {
     )
     println("storage: ${storage.id}")
     check(storage.items.isEmpty())
+    //
     val p0 = storage.add("foo")
     println("item: ${p0.valueInfo}")
     check(storage.items.size == 1)
@@ -34,4 +35,13 @@ fun main() {
     println("item: ${p1.valueInfo}")
     check(storage.items.size == 2)
     check(storage[p1.valueInfo.id]!!.value == "bar")
+    val p2 = storage.add("baz")
+    println("item: ${p2.valueInfo}")
+    check(storage.items.size == 3)
+    check(storage[p2.valueInfo.id]!!.value == "baz")
+    //
+    val v1 = storage.set(p1.valueInfo.id, "qux") // todo update
+    checkNotNull(v1)
+    check(storage.items.size == 3)
+    check(storage[p1.valueInfo.id]!!.value == "qux")
 }

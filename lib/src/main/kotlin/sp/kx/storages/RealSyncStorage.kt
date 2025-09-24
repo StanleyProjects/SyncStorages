@@ -69,11 +69,11 @@ class RealSyncStorage<T : Any>(
     }
 
     override fun add(value: T): Payload<T> {
-        val created = System.currentTimeMillis().milliseconds
+        val created = System.currentTimeMillis().milliseconds // todo
         val payload = Payload(
             value = value,
             valueInfo = ValueInfo(
-                id = UUID.randomUUID(),
+                id = UUID.randomUUID(), // todo
                 created = created,
             ),
             valueState = ValueState(
@@ -90,7 +90,25 @@ class RealSyncStorage<T : Any>(
     }
 
     override fun set(id: UUID, value: T): ValueState? {
-        TODO("set")
+        val items = items.toMutableList()
+        for (index in items.indices) {
+            val it = items[index]
+            if (it.valueInfo.id == id) {
+                items.removeAt(index)
+                val valueState = ValueState(
+                    updated = System.currentTimeMillis().milliseconds, // todo
+                    hash = hf.map(transformer.encode(value)),
+                )
+                val payload = Payload(
+                    value = value,
+                    valueInfo = it.valueInfo,
+                    valueState = valueState,
+                )
+                write(items = items + payload)
+                return valueState
+            }
+        }
+        return null
     }
 
     override fun get(id: UUID): Payload<T>? {
