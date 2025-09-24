@@ -26,5 +26,9 @@ fun main() {
     )
     println("storage: ${storage.id}")
     check(storage.items.isEmpty())
+    val p0 = storage.add("foo")
+    println("item: ${p0.valueInfo}")
+    check(storage.items.size == 1)
+    check(storage[p0.valueInfo.id]!!.value == "foo")
     TODO()
 }

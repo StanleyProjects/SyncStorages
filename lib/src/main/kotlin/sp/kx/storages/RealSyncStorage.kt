@@ -5,6 +5,7 @@ import sp.kx.bytes.readBytes
 import sp.kx.bytes.readInt
 import sp.kx.bytes.readLong
 import sp.kx.bytes.readUUID
+import sp.kx.bytes.writeBytes
 import sp.kx.hashes.HashFunction
 import sp.kx.streamers.MutableStreamer
 import java.util.UUID
@@ -41,6 +42,20 @@ class RealSyncStorage<T : Any>(
     override val syncState: SyncState
         get() = TODO("Not yet implemented")
 
+    private fun write(items: List<Payload<T>>) {
+        streamer.writer().use { stream ->
+            stream.writeBytes(items.size)
+            items.forEachIndexed { index, payload ->
+                stream.writeBytes(payload.valueInfo.id)
+                stream.writeBytes(payload.valueInfo.created.inWholeMilliseconds)
+                stream.writeBytes(payload.valueState.updated.inWholeMilliseconds)
+                val encoded = transformer.encode(payload.value)
+                stream.writeBytes(encoded.size)
+                stream.write(encoded)
+            }
+        }
+    }
+
     override fun getMergeState(syncState: SyncState): MergeState {
         TODO("getMergeState")
     }
@@ -54,7 +69,20 @@ class RealSyncStorage<T : Any>(
     }
 
     override fun add(value: T): Payload<T> {
-        TODO("add")
+        val created = System.currentTimeMillis().milliseconds
+        val payload = Payload(
+            value = value,
+            valueInfo = ValueInfo(
+                id = UUID.randomUUID(),
+                created = created,
+            ),
+            valueState = ValueState(
+                updated = created,
+                hash = hf.map(transformer.encode(value)),
+            ),
+        )
+        write(items = items + payload)
+        return payload
     }
 
     override fun delete(id: UUID): Boolean {
@@ -66,6 +94,25 @@ class RealSyncStorage<T : Any>(
     }
 
     override fun get(id: UUID): Payload<T>? {
-        TODO("get")
+        streamer.reader().use { stream ->
+            for (i in 0 until stream.readInt()) {
+                if (id != stream.readUUID()) continue
+                val valueInfo = ValueInfo(
+                    id = id,
+                    created = stream.readLong().milliseconds,
+                )
+                val updated = stream.readLong().milliseconds
+                val encoded = stream.readBytes(stream.readInt())
+                return Payload(
+                    value = transformer.decode(encoded = encoded),
+                    valueInfo = valueInfo,
+                    valueState = ValueState(
+                        updated = updated,
+                        hash = hf.map(encoded),
+                    ),
+                )
+            }
+        }
+        return null
     }
 }
