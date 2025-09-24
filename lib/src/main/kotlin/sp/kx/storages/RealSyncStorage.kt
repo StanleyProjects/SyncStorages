@@ -2,10 +2,9 @@ package sp.kx.storages
 
 import java.util.UUID
 
-class RealSyncStorage<T : Any> : SyncStorage<T> {
-    override val id: UUID
-        get() = TODO("Not yet implemented")
-
+class RealSyncStorage<T : Any>(
+    override val id: UUID,
+) : SyncStorage<T> {
     override val items: List<Payload<T>>
         get() = TODO("Not yet implemented")
 
