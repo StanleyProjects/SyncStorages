@@ -65,8 +65,11 @@ internal class SyncStorageTest {
         //
         val syncState = s1.getSyncState()
         assertEquals(p11.valueInfo.id, syncState.deleted.single())
+        assertEquals(p12.valueInfo.id, syncState.valueStates.entries.single().key)
+        //
         val mergeState = s2.getMergeState(syncState = syncState)
         assertEquals(p21.valueInfo.id, mergeState.deleted.single())
-        TODO("SyncStorageTest:getMergeStateTest")
+        assertEquals(p12.valueInfo.id, mergeState.downloaded.single())
+        assertEquals(p22.valueInfo.id, mergeState.payloads.single().valueInfo.id)
     }
 }

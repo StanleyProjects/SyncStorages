@@ -8,6 +8,7 @@ import sp.kx.bytes.readUUID
 import sp.kx.bytes.writeBytes
 import sp.kx.hashes.Hashes
 import sp.kx.streamers.MutableStreamer
+import java.io.InputStream
 import java.util.UUID
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -28,23 +29,7 @@ class RealSyncStorage<T : Any>(
     override val items: List<Payload<T>>
         get() {
             return streamer.reader().use { stream ->
-                stream.skip((stream.readInt() * 16).toLong()) // deleted
-                (0 until stream.readInt()).map { index ->
-                    val valueInfo = ValueInfo(
-                        id = stream.readUUID(),
-                        created = stream.readLong().milliseconds,
-                    )
-                    val updated = stream.readLong().milliseconds
-                    val encoded = stream.readBytes(stream.readInt())
-                    Payload(
-                        value = transformer.decode(encoded = encoded),
-                        valueInfo = valueInfo,
-                        valueState = ValueState(
-                            updated = updated,
-                            hash = hashes.map(encoded),
-                        ),
-                    )
-                }
+                getItems(stream = stream, transformer = transformer)
             }
         }
 
@@ -75,6 +60,54 @@ class RealSyncStorage<T : Any>(
         }
     }
 
+    private fun <U : Any> InputStream.readPayload(transformer: Transformer<U>): Payload<U> {
+        val valueInfo = ValueInfo(
+            id = readUUID(),
+            created = readLong().milliseconds,
+        )
+        val updated = readLong().milliseconds
+        val encoded = readBytes(readInt())
+        return Payload(
+            value = transformer.decode(encoded = encoded),
+            valueInfo = valueInfo,
+            valueState = ValueState(
+                updated = updated,
+                hash = hashes.map(encoded),
+            ),
+        )
+    }
+
+    private fun InputStream.readPayload(): Payload<ByteArray> {
+        val valueInfo = ValueInfo(
+            id = readUUID(),
+            created = readLong().milliseconds,
+        )
+        val updated = readLong().milliseconds
+        val encoded = readBytes(readInt())
+        return Payload(
+            value = encoded,
+            valueInfo = valueInfo,
+            valueState = ValueState(
+                updated = updated,
+                hash = hashes.map(encoded),
+            ),
+        )
+    }
+
+    private fun <U : Any> getItems(stream: InputStream, transformer: Transformer<U>): List<Payload<U>> {
+        stream.skip((stream.readInt() * 16).toLong()) // deleted
+        return (0 until stream.readInt()).map { index ->
+            stream.readPayload(transformer = transformer)
+        }
+    }
+
+    private fun getItems(stream: InputStream): List<Payload<ByteArray>> {
+        stream.skip((stream.readInt() * 16).toLong()) // deleted
+        return (0 until stream.readInt()).map { index ->
+            stream.readPayload()
+        }
+    }
+
     override fun getSyncState(): SyncState {
         return streamer.reader().use { stream ->
             val deleted: Set<UUID> = (0 until stream.readInt()).mapTo(HashSet()) { stream.readUUID() }
@@ -100,6 +133,23 @@ class RealSyncStorage<T : Any>(
             val downloaded = HashSet<UUID>()
             val payloads = mutableListOf<Payload<ByteArray>>()
             val deleted = deleted
+            val items = getItems(stream = stream)
+            for (payload in items) {
+                if (syncState.valueStates.containsKey(payload.valueInfo.id)) continue
+                if (syncState.deleted.contains(payload.valueInfo.id)) continue
+                payloads.add(payload)
+            }
+            for ((id, valueState) in syncState.valueStates) {
+                val payload = items.firstOrNull { it.valueInfo.id == id }
+                if (payload == null) {
+                    if (deleted.contains(id)) continue
+                    downloaded.add(id)
+                } else if (valueState.updated > payload.valueState.updated) {
+                    downloaded.add(id)
+                } else if (!valueState.hash.contentEquals(payload.valueState.hash)) {
+                    payloads.add(payload)
+                }
+            }
             MergeState(
                 downloaded = downloaded,
                 payloads = payloads,
