@@ -40,7 +40,25 @@ class RealSyncStorage<T : Any>(
         }
 
     override val syncState: SyncState
-        get() = TODO("Not yet implemented")
+        get() {
+            return streamer.reader().use { stream ->
+                val deleted = HashSet<UUID>() // todo
+                val valueStates = (0 until stream.readInt()).associate { index ->
+                    val id = stream.readUUID()
+                    stream.skip(8) // created
+                    val updated = stream.readLong().milliseconds
+                    val encoded = stream.readBytes(stream.readInt())
+                    id to ValueState(
+                        updated = updated,
+                        hash = hashes.map(encoded),
+                    )
+                }
+                SyncState(
+                    valueStates = valueStates,
+                    deleted = deleted,
+                )
+            }
+        }
 
     private fun write(items: List<Payload<T>>) {
         streamer.writer().use { stream ->
