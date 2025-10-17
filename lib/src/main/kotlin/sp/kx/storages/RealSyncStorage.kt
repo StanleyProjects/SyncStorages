@@ -48,27 +48,6 @@ class RealSyncStorage<T : Any>(
             }
         }
 
-    override val syncState: SyncState
-        get() {
-            return streamer.reader().use { stream ->
-                val deleted: Set<UUID> = (0 until stream.readInt()).mapTo(HashSet()) { stream.readUUID() }
-                val valueStates = (0 until stream.readInt()).associate { index ->
-                    val id = stream.readUUID()
-                    stream.skip(8) // created
-                    val updated = stream.readLong().milliseconds
-                    val encoded = stream.readBytes(stream.readInt())
-                    id to ValueState(
-                        updated = updated,
-                        hash = hashes.map(encoded),
-                    )
-                }
-                SyncState(
-                    valueStates = valueStates,
-                    deleted = deleted,
-                )
-            }
-        }
-
     private val deleted: Set<UUID>
         get() {
             return streamer.reader().use { stream ->
@@ -96,8 +75,37 @@ class RealSyncStorage<T : Any>(
         }
     }
 
+    override fun getSyncState(): SyncState {
+        return streamer.reader().use { stream ->
+            val deleted: Set<UUID> = (0 until stream.readInt()).mapTo(HashSet()) { stream.readUUID() }
+            val valueStates = (0 until stream.readInt()).associate { index ->
+                val id = stream.readUUID()
+                stream.skip(8) // created
+                val updated = stream.readLong().milliseconds
+                val encoded = stream.readBytes(stream.readInt())
+                id to ValueState(
+                    updated = updated,
+                    hash = hashes.map(encoded),
+                )
+            }
+            SyncState(
+                valueStates = valueStates,
+                deleted = deleted,
+            )
+        }
+    }
+
     override fun getMergeState(syncState: SyncState): MergeState {
-        TODO("getMergeState")
+        return streamer.reader().use { stream ->
+            val downloaded = HashSet<UUID>()
+            val payloads = mutableListOf<Payload<ByteArray>>()
+            val deleted = deleted
+            MergeState(
+                downloaded = downloaded,
+                payloads = payloads,
+                deleted = deleted,
+            )
+        }
     }
 
     override fun merge(mergeState: MergeState): CommitState {
