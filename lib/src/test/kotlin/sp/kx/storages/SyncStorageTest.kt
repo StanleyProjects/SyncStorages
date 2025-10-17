@@ -23,10 +23,7 @@ internal class SyncStorageTest {
         //
         val actual = storage[payload.valueInfo.id]
         checkNotNull(actual)
-        assertEquals(payload.value, actual.value)
-        assertEquals(payload.valueInfo, actual.valueInfo)
-        assertEquals(payload.valueState.updated, actual.valueState.updated)
-        assertTrue(payload.valueState.hash.contentEquals(actual.valueState.hash))
+        assertEquals(expected = payload, actual = actual)
         //
         storage.getSyncState().also { syncState ->
             assertTrue(syncState.deleted.isEmpty())
@@ -70,6 +67,51 @@ internal class SyncStorageTest {
         val mergeState = s2.getMergeState(syncState = syncState)
         assertEquals(p21.valueInfo.id, mergeState.deleted.single())
         assertEquals(p12.valueInfo.id, mergeState.downloaded.single())
-        assertEquals(p22.valueInfo.id, mergeState.payloads.single().valueInfo.id)
+        assertEquals(p22.valueInfo.id, mergeState.encoded.single().valueInfo.id)
+    }
+
+    @Test
+    fun mergeTest() {
+        val transformer = StringTransformer
+        val s1 = mockSyncStorage(
+            transformer = transformer,
+            hashes = Hashes.MD5,
+        )
+        val p11 = s1.add("v11")
+        val p12 = s1.add("v12")
+        s1.delete(p11.valueInfo.id)
+        //
+        val s2 = mockSyncStorage(
+            transformer = transformer,
+            hashes = Hashes.MD5,
+        )
+        val p21 = s2.add("v21")
+        val p22 = s2.add("v22")
+        s2.delete(p21.valueInfo.id)
+        //
+        val syncState = s1.getSyncState()
+        val mergeState = s2.getMergeState(syncState = syncState)
+        val commitState = s1.merge(mergeState = mergeState)
+        assertEquals(p11.valueInfo.id, commitState.deleted.single())
+        val payload = commitState.encoded.single()
+        assertEquals(transformer.decode(payload.value), p12.value)
+        assertEquals(payload.valueInfo, p12.valueInfo)
+        assertEquals(payload.valueState.updated, p12.valueState.updated)
+        assertTrue(payload.valueState.hash.contentEquals(p12.valueState.hash))
+        //
+        val items = s1.items
+        assertEquals(2, items.size)
+        val (p1, p2) = items
+        assertEquals(expected = p12, actual = p1)
+        assertEquals(expected = p22, actual = p2)
+    }
+
+    companion object {
+        private fun <T : Any> assertEquals(expected: Payload<T>, actual: Payload<T>) {
+            assertEquals(expected.value, actual.value)
+            assertEquals(expected.valueInfo, actual.valueInfo)
+            assertEquals(expected.valueState.updated, actual.valueState.updated)
+            assertTrue(expected.valueState.hash.contentEquals(actual.valueState.hash))
+        }
     }
 }

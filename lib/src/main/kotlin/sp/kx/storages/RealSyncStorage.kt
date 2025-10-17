@@ -8,6 +8,7 @@ import sp.kx.bytes.readUUID
 import sp.kx.bytes.writeBytes
 import sp.kx.hashes.Hashes
 import sp.kx.streamers.MutableStreamer
+import java.io.ByteArrayOutputStream
 import java.io.InputStream
 import java.util.UUID
 import kotlin.time.Duration.Companion.milliseconds
@@ -131,13 +132,13 @@ class RealSyncStorage<T : Any>(
     override fun getMergeState(syncState: SyncState): MergeState {
         return streamer.reader().use { stream ->
             val downloaded = HashSet<UUID>()
-            val payloads = mutableListOf<Payload<ByteArray>>()
+            val encoded = mutableListOf<Payload<ByteArray>>()
             val deleted = deleted
             val items = getItems(stream = stream)
             for (payload in items) {
                 if (syncState.valueStates.containsKey(payload.valueInfo.id)) continue
                 if (syncState.deleted.contains(payload.valueInfo.id)) continue
-                payloads.add(payload)
+                encoded.add(payload)
             }
             for ((id, valueState) in syncState.valueStates) {
                 val payload = items.firstOrNull { it.valueInfo.id == id }
@@ -147,19 +148,58 @@ class RealSyncStorage<T : Any>(
                 } else if (valueState.updated > payload.valueState.updated) {
                     downloaded.add(id)
                 } else if (!valueState.hash.contentEquals(payload.valueState.hash)) {
-                    payloads.add(payload)
+                    encoded.add(payload)
                 }
             }
             MergeState(
                 downloaded = downloaded,
-                payloads = payloads,
+                encoded = encoded,
                 deleted = deleted,
             )
         }
     }
 
+    private fun bytesOf(items: List<Payload<out Any>>): ByteArray {
+        return ByteArrayOutputStream().use { stream ->
+            items.forEach {
+                stream.writeBytes(it.valueInfo.id)
+                stream.writeBytes(it.valueState.updated.inWholeMilliseconds)
+                stream.writeBytes(it.valueState.hash)
+            }
+            stream.toByteArray()
+        }
+    }
+
+    private fun <U : Any> Payload<ByteArray>.map(transformer: Transformer<U>): Payload<U> {
+        return Payload(
+            value = transformer.decode(value),
+            valueInfo = valueInfo,
+            valueState = valueState,
+        )
+    }
+
     override fun merge(mergeState: MergeState): CommitState {
-        TODO("merge")
+        val deleted = deleted
+        val payloads = mutableListOf<Payload<T>>()
+        val encoded = mutableListOf<Payload<ByteArray>>()
+        for (item in streamer.reader().use(::getItems)) {
+            if (mergeState.deleted.contains(item.valueInfo.id)) continue
+            if (mergeState.encoded.any { it.valueInfo.id == item.valueInfo.id }) continue
+            if (mergeState.downloaded.contains(item.valueInfo.id)) encoded.add(item)
+            payloads += item.map(transformer)
+        }
+        for (item in mergeState.encoded) {
+            payloads += item.map(transformer)
+        }
+        write(
+            items = payloads,
+            deleted = deleted + mergeState.deleted,
+        )
+        return CommitState(
+            hash = hashes.map(bytesOf(items = payloads)),
+            encoded = encoded,
+            deleted = deleted,
+        )
     }
 
     override fun commit(commitState: CommitState): Boolean {
