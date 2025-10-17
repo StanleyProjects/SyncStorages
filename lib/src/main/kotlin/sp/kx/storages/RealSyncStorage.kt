@@ -17,9 +17,18 @@ class RealSyncStorage<T : Any>(
     private val transformer: Transformer<T>,
     private val hashes: Hashes,
 ) : SyncStorage<T> {
+    init {
+        val value = streamer.reader().use { it.read() }
+        if (value < 0) streamer.writer().use {
+            it.writeBytes(0) // deleted
+            it.writeBytes(0) // items
+        }
+    }
+
     override val items: List<Payload<T>>
         get() {
             return streamer.reader().use { stream ->
+                stream.skip((stream.readInt() * 16).toLong()) // deleted
                 (0 until stream.readInt()).map { index ->
                     val valueInfo = ValueInfo(
                         id = stream.readUUID(),
@@ -42,7 +51,7 @@ class RealSyncStorage<T : Any>(
     override val syncState: SyncState
         get() {
             return streamer.reader().use { stream ->
-                val deleted = HashSet<UUID>() // todo
+                val deleted: Set<UUID> = (0 until stream.readInt()).mapTo(HashSet()) { stream.readUUID() }
                 val valueStates = (0 until stream.readInt()).associate { index ->
                     val id = stream.readUUID()
                     stream.skip(8) // created
@@ -60,10 +69,23 @@ class RealSyncStorage<T : Any>(
             }
         }
 
-    private fun write(items: List<Payload<T>>) {
+    private val deleted: Set<UUID>
+        get() {
+            return streamer.reader().use { stream ->
+                (0 until stream.readInt()).mapTo(HashSet()) { stream.readUUID() }
+            }
+        }
+
+    private fun write(
+        deleted: Set<UUID> = this.deleted,
+        items: List<Payload<T>>,
+    ) {
         streamer.writer().use { stream ->
+            stream.writeBytes(deleted.size)
+            deleted.forEach(stream::writeBytes)
+            //
             stream.writeBytes(items.size)
-            items.forEachIndexed { index, payload ->
+            items.forEach { payload ->
                 stream.writeBytes(payload.valueInfo.id)
                 stream.writeBytes(payload.valueInfo.created.inWholeMilliseconds)
                 stream.writeBytes(payload.valueState.updated.inWholeMilliseconds)
@@ -109,7 +131,7 @@ class RealSyncStorage<T : Any>(
             val it = items[index]
             if (it.valueInfo.id == id) {
                 items.removeAt(index)
-                write(items = items)
+                write(deleted = deleted + id, items = items)
                 return true
             }
         }
@@ -140,6 +162,7 @@ class RealSyncStorage<T : Any>(
 
     override fun get(id: UUID): Payload<T>? {
         streamer.reader().use { stream ->
+            stream.skip((stream.readInt() * 16).toLong()) // deleted
             for (index in 0 until stream.readInt()) {
                 if (id != stream.readUUID()) {
                     stream.skip(16)

@@ -8,7 +8,7 @@ import sp.kx.hashes.Hashes
 import java.util.HexFormat
 import java.util.UUID
 
-internal class RealSyncStorageTest {
+internal class MutableStorageTest {
     @Test
     fun getTest() {
         val storage = mockSyncStorage(transformer = StringTransformer)
