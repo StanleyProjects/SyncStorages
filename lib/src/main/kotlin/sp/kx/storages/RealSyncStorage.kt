@@ -6,7 +6,7 @@ import sp.kx.bytes.readInt
 import sp.kx.bytes.readLong
 import sp.kx.bytes.readUUID
 import sp.kx.bytes.writeBytes
-import sp.kx.hashes.HashFunction
+import sp.kx.hashes.Hashes
 import sp.kx.streamers.MutableStreamer
 import java.util.UUID
 import kotlin.time.Duration.Companion.milliseconds
@@ -15,7 +15,7 @@ class RealSyncStorage<T : Any>(
     override val id: UUID,
     private val streamer: MutableStreamer,
     private val transformer: Transformer<T>,
-    private val hf: HashFunction,
+    private val hashes: Hashes,
 ) : SyncStorage<T> {
     override val items: List<Payload<T>>
         get() {
@@ -32,7 +32,7 @@ class RealSyncStorage<T : Any>(
                         valueInfo = valueInfo,
                         valueState = ValueState(
                             updated = updated,
-                            hash = hf.map(encoded),
+                            hash = hashes.map(encoded),
                         ),
                     )
                 }
@@ -78,7 +78,7 @@ class RealSyncStorage<T : Any>(
             ),
             valueState = ValueState(
                 updated = created,
-                hash = hf.map(transformer.encode(value)),
+                hash = hashes.map(transformer.encode(value)),
             ),
         )
         write(items = items + payload)
@@ -106,7 +106,7 @@ class RealSyncStorage<T : Any>(
                 items.removeAt(index)
                 val valueState = ValueState(
                     updated = System.currentTimeMillis().milliseconds, // todo
-                    hash = hf.map(transformer.encode(value)),
+                    hash = hashes.map(transformer.encode(value)),
                 )
                 val payload = Payload(
                     value = value,
@@ -139,7 +139,7 @@ class RealSyncStorage<T : Any>(
                     valueInfo = valueInfo,
                     valueState = ValueState(
                         updated = updated,
-                        hash = hf.map(encoded),
+                        hash = hashes.map(encoded),
                     ),
                 )
             }
