@@ -35,7 +35,6 @@ internal class RealSyncStorageTest {
         assertTrue(payload.valueState.hash.contentEquals(actual.valueState.hash))
     }
 
-
     @Test
     fun deleteTest() {
         val storage = mockSyncStorage(
@@ -57,5 +56,26 @@ internal class RealSyncStorageTest {
         //
         assertTrue(storage.delete(payload.valueInfo.id))
         assertNull(storage[payload.valueInfo.id])
+    }
+
+    @Test
+    fun setTest() {
+        val storage = mockSyncStorage(
+            transformer = StringTransformer,
+            hashes = Hashes.MD5,
+        )
+        val payload = storage.add(value = "foo bar baz")
+        //
+        val value = "qux"
+        val valueState = storage.set(id = payload.valueInfo.id, value = value)
+        checkNotNull(valueState)
+        val expected = HexFormat.of().parseHex("d85b1213473c2fd7c2045020a6b9c62b")
+        assertTrue(expected.contentEquals(valueState.hash))
+        val actual = storage[payload.valueInfo.id]
+        checkNotNull(actual)
+        assertEquals(value, actual.value)
+        assertEquals(payload.valueInfo, actual.valueInfo)
+        assertEquals(valueState.updated, actual.valueState.updated)
+        assertTrue(valueState.hash.contentEquals(actual.valueState.hash))
     }
 }
