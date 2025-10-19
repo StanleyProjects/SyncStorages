@@ -191,7 +191,7 @@ class RealSyncStorage<T : Any>(
         for (item in mergeState.encoded) {
             payloads += item.map(transformer)
         }
-        payloads.sortBy { it.valueInfo.created }
+        payloads.sortWith(Comparators.payloads)
         write(
             items = payloads,
             deleted = deleted + mergeState.deleted,
@@ -214,7 +214,7 @@ class RealSyncStorage<T : Any>(
         for (item in commitState.encoded) {
             payloads += item.map(transformer)
         }
-        payloads.sortBy { it.valueInfo.created }
+        payloads.sortWith(Comparators.payloads)
         val hash = hashes.map(bytesOf(payloads = payloads))
         check(hash.contentEquals(commitState.hash)) { "Wrong hash!" }
         write(

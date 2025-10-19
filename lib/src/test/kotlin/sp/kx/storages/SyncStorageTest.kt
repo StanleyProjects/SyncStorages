@@ -6,7 +6,6 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import sp.kx.hashes.Hashes
 import java.util.HexFormat
-import java.util.UUID
 
 internal class SyncStorageTest {
     @Test
@@ -140,15 +139,6 @@ internal class SyncStorageTest {
             val (p1, p2) = items
             assertEquals(expected = p12, actual = p1)
             assertEquals(expected = p22, actual = p2)
-        }
-    }
-
-    companion object {
-        private fun <T : Any> assertEquals(expected: Payload<T>, actual: Payload<T>) {
-            assertEquals(expected.value, actual.value)
-            assertEquals(expected.valueInfo, actual.valueInfo)
-            assertEquals(expected.valueState.updated, actual.valueState.updated)
-            assertTrue(expected.valueState.hash.contentEquals(actual.valueState.hash))
         }
     }
 }
