@@ -106,6 +106,43 @@ internal class SyncStorageTest {
         assertEquals(expected = p22, actual = p2)
     }
 
+    @Test
+    fun commitTest() {
+        val transformer = StringTransformer
+        val s1 = mockSyncStorage(
+            transformer = transformer,
+            hashes = Hashes.MD5,
+        )
+        val p11 = s1.add("v11")
+        val p12 = s1.add("v12")
+        s1.delete(p11.valueInfo.id)
+        //
+        val s2 = mockSyncStorage(
+            transformer = transformer,
+            hashes = Hashes.MD5,
+        )
+        val p21 = s2.add("v21")
+        val p22 = s2.add("v22")
+        s2.delete(p21.valueInfo.id)
+        //
+        val syncState = s1.getSyncState()
+        val mergeState = s2.getMergeState(syncState = syncState)
+        val commitState = s1.merge(mergeState = mergeState)
+        assertTrue(s2.commit(commitState = commitState))
+        s1.items.also { items ->
+            assertEquals(2, items.size)
+            val (p1, p2) = items
+            assertEquals(expected = p12, actual = p1)
+            assertEquals(expected = p22, actual = p2)
+        }
+        s2.items.also { items ->
+            assertEquals(2, items.size)
+            val (p1, p2) = items
+            assertEquals(expected = p12, actual = p1)
+            assertEquals(expected = p22, actual = p2)
+        }
+    }
+
     companion object {
         private fun <T : Any> assertEquals(expected: Payload<T>, actual: Payload<T>) {
             assertEquals(expected.value, actual.value)

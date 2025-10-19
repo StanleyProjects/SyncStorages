@@ -159,9 +159,9 @@ class RealSyncStorage<T : Any>(
         }
     }
 
-    private fun bytesOf(items: List<Payload<out Any>>): ByteArray {
+    private fun bytesOf(payloads: List<Payload<out Any>>): ByteArray {
         return ByteArrayOutputStream().use { stream ->
-            items.forEach {
+            payloads.forEach {
                 stream.writeBytes(it.valueInfo.id)
                 stream.writeBytes(it.valueState.updated.inWholeMilliseconds)
                 stream.writeBytes(it.valueState.hash)
@@ -191,19 +191,37 @@ class RealSyncStorage<T : Any>(
         for (item in mergeState.encoded) {
             payloads += item.map(transformer)
         }
+        payloads.sortBy { it.valueInfo.created }
         write(
             items = payloads,
             deleted = deleted + mergeState.deleted,
         )
         return CommitState(
-            hash = hashes.map(bytesOf(items = payloads)),
+            hash = hashes.map(bytesOf(payloads = payloads)),
             encoded = encoded,
             deleted = deleted,
         )
     }
 
     override fun commit(commitState: CommitState): Boolean {
-        TODO("commit")
+        val payloads = mutableListOf<Payload<T>>()
+        // todo no changes
+        for (item in items) {
+            if (commitState.deleted.contains(item.valueInfo.id)) continue
+            if (commitState.encoded.any { it.valueInfo.id == item.valueInfo.id }) continue
+            payloads += item
+        }
+        for (item in commitState.encoded) {
+            payloads += item.map(transformer)
+        }
+        payloads.sortBy { it.valueInfo.created }
+        val hash = hashes.map(bytesOf(payloads = payloads))
+        check(hash.contentEquals(commitState.hash)) { "Wrong hash!" }
+        write(
+            items = payloads,
+            deleted = deleted + commitState.deleted,
+        )
+        return true
     }
 
     override fun add(value: T): Payload<T> {
