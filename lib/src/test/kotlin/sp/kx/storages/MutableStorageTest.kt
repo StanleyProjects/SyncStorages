@@ -59,7 +59,7 @@ internal class MutableStorageTest {
     }
 
     @Test
-    fun setTest() {
+    fun updateTest() {
         val storage = mockSyncStorage(
             transformer = StringTransformer,
             hashes = Hashes.MD5,
@@ -67,7 +67,7 @@ internal class MutableStorageTest {
         val payload = storage.add(value = "foo bar baz")
         //
         val value = "qux"
-        val valueState = storage.set(id = payload.valueInfo.id, value = value)
+        val valueState = storage.update(id = payload.valueInfo.id, value = value)
         checkNotNull(valueState)
         val expected = HexFormat.of().parseHex("d85b1213473c2fd7c2045020a6b9c62b")
         assertTrue(expected.contentEquals(valueState.hash))

@@ -1,7 +1,6 @@
 package sp.kx.storages
 
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertTrue
 
 internal fun <T : Any> assertEquals(
     expected: Collection<T>,
@@ -20,7 +19,7 @@ internal fun <T : Comparable<T>> assertEquals(expected: Collection<T>, actual: C
     assertEquals(expected.size, actual.size)
     val sorted = actual.sorted()
     expected.sorted().forEachIndexed { index, e ->
-        assertEquals(e, sorted[index])
+        assertEquals(e, sorted[index], "index: $index")
     }
 }
 
@@ -41,6 +40,5 @@ internal fun <K : Comparable<K>, V : Any> assertEquals(
 internal fun <T : Any> assertEquals(expected: Payload<out T>, actual: Payload<out T>, message: String = "${expected.valueInfo.id}") {
     assertEquals(expected.value, actual.value, message)
     assertEquals(expected.valueInfo, actual.valueInfo, message)
-    assertEquals(expected.valueState.updated, actual.valueState.updated, message)
-    assertTrue(expected.valueState.hash.contentEquals(actual.valueState.hash), message)
+    assertEquals(expected.valueState, actual.valueState, message)
 }

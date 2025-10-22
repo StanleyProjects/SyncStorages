@@ -186,14 +186,14 @@ class RealSyncStorage<T : Any>(
         val deleted = deleted
         val payloads = mutableListOf<Payload<T>>()
         val encoded = mutableListOf<Payload<ByteArray>>()
-        for (item in streamer.reader().use(::getPayloads)) {
-            if (mergeState.deleted.contains(item.valueInfo.id)) continue
-            if (mergeState.encoded.any { it.valueInfo.id == item.valueInfo.id }) continue
-            if (mergeState.downloaded.contains(item.valueInfo.id)) encoded.add(item)
-            payloads += item.map(transformer)
+        for (payload in streamer.reader().use(::getPayloads)) {
+            if (mergeState.deleted.contains(payload.valueInfo.id)) continue
+            if (mergeState.encoded.any { it.valueInfo.id == payload.valueInfo.id }) continue
+            if (mergeState.downloaded.contains(payload.valueInfo.id)) encoded.add(payload)
+            payloads += payload.map(transformer)
         }
-        for (item in mergeState.encoded) {
-            payloads += item.map(transformer)
+        for (payload in mergeState.encoded) {
+            payloads += payload.map(transformer)
         }
         payloads.sortWith(Comparators.payloads)
         write(
@@ -210,13 +210,13 @@ class RealSyncStorage<T : Any>(
     override fun commit(commitState: CommitState): Boolean {
         val payloads = mutableListOf<Payload<T>>()
         // todo no changes
-        for (item in payloads) {
-            if (commitState.deleted.contains(item.valueInfo.id)) continue
-            if (commitState.encoded.any { it.valueInfo.id == item.valueInfo.id }) continue
-            payloads += item
+        for (payload in this.payloads) {
+            if (commitState.deleted.contains(payload.valueInfo.id)) continue
+            if (commitState.encoded.any { it.valueInfo.id == payload.valueInfo.id }) continue
+            payloads += payload
         }
-        for (item in commitState.encoded) {
-            payloads += item.map(transformer)
+        for (payload in commitState.encoded) {
+            payloads += payload.map(transformer)
         }
         payloads.sortWith(Comparators.payloads)
         val hash = hashes.map(bytesOf(payloads = payloads))

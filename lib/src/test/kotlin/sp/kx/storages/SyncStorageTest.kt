@@ -4,7 +4,10 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import sp.kx.bytes.Transformer
 import sp.kx.hashes.Hashes
+import sp.kx.ids.Ids
+import sp.kx.times.Times
 import java.util.HexFormat
 
 internal class SyncStorageTest {
@@ -43,17 +46,26 @@ internal class SyncStorageTest {
 
     @Test
     fun getMergeStateTest() {
+        val transformer: Transformer<String> = StringTransformer
+        val hashes: Hashes = Hashes.MD5
+        val times: Times = MockTimes()
+        val ids: Ids = MockIds()
+        //
         val s1 = mockSyncStorage(
-            transformer = StringTransformer,
-            hashes = Hashes.MD5,
+            transformer = transformer,
+            hashes = hashes,
+            times = times,
+            ids = ids,
         )
         val p11 = s1.add("v11")
         val p12 = s1.add("v12")
         s1.delete(p11.valueInfo.id)
         //
         val s2 = mockSyncStorage(
-            transformer = StringTransformer,
-            hashes = Hashes.MD5,
+            transformer = transformer,
+            hashes = hashes,
+            times = times,
+            ids = ids,
         )
         val p21 = s2.add("v21")
         val p22 = s2.add("v22")
@@ -71,10 +83,16 @@ internal class SyncStorageTest {
 
     @Test
     fun mergeTest() {
-        val transformer = StringTransformer
+        val transformer: Transformer<String> = StringTransformer
+        val hashes: Hashes = Hashes.MD5
+        val times: Times = MockTimes()
+        val ids: Ids = MockIds()
+        //
         val s1 = mockSyncStorage(
             transformer = transformer,
-            hashes = Hashes.MD5,
+            hashes = hashes,
+            times = times,
+            ids = ids,
         )
         val p11 = s1.add("v11")
         val p12 = s1.add("v12")
@@ -82,7 +100,9 @@ internal class SyncStorageTest {
         //
         val s2 = mockSyncStorage(
             transformer = transformer,
-            hashes = Hashes.MD5,
+            hashes = hashes,
+            times = times,
+            ids = ids,
         )
         val p21 = s2.add("v21")
         val p22 = s2.add("v22")
@@ -98,19 +118,25 @@ internal class SyncStorageTest {
         assertEquals(payload.valueState.updated, p12.valueState.updated)
         assertTrue(payload.valueState.hash.contentEquals(p12.valueState.hash))
         //
-        val items = s1.items
-        assertEquals(2, items.size)
-        val (p1, p2) = items
+        val payloads = s1.payloads
+        assertEquals(2, payloads.size)
+        val (p1, p2) = payloads
         assertEquals(expected = p12, actual = p1)
         assertEquals(expected = p22, actual = p2)
     }
 
     @Test
     fun commitTest() {
-        val transformer = StringTransformer
+        val transformer: Transformer<String> = StringTransformer
+        val hashes: Hashes = Hashes.MD5
+        val times: Times = MockTimes()
+        val ids: Ids = MockIds()
+        //
         val s1 = mockSyncStorage(
             transformer = transformer,
-            hashes = Hashes.MD5,
+            hashes = hashes,
+            times = times,
+            ids = ids,
         )
         val p11 = s1.add("v11")
         val p12 = s1.add("v12")
@@ -118,7 +144,9 @@ internal class SyncStorageTest {
         //
         val s2 = mockSyncStorage(
             transformer = transformer,
-            hashes = Hashes.MD5,
+            hashes = hashes,
+            times = times,
+            ids = ids,
         )
         val p21 = s2.add("v21")
         val p22 = s2.add("v22")
@@ -128,15 +156,15 @@ internal class SyncStorageTest {
         val mergeState = s2.getMergeState(syncState = syncState)
         val commitState = s1.merge(mergeState = mergeState)
         assertTrue(s2.commit(commitState = commitState))
-        s1.items.also { items ->
-            assertEquals(2, items.size)
-            val (p1, p2) = items
+        s1.payloads.also { payloads ->
+            assertEquals(2, payloads.size)
+            val (p1, p2) = payloads
             assertEquals(expected = p12, actual = p1)
             assertEquals(expected = p22, actual = p2)
         }
-        s2.items.also { items ->
-            assertEquals(2, items.size)
-            val (p1, p2) = items
+        s2.payloads.also { payloads ->
+            assertEquals(2, payloads.size)
+            val (p1, p2) = payloads
             assertEquals(expected = p12, actual = p1)
             assertEquals(expected = p22, actual = p2)
         }

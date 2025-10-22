@@ -4,14 +4,21 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import sp.kx.hashes.Hashes
+import sp.kx.ids.Ids
+import sp.kx.times.Times
 
 internal class CommitTest {
     @Test
     fun commitTest() {
         val transformer = StringTransformer
+        val hashes: Hashes = Hashes.MD5
+        val times: Times = MockTimes()
+        val ids: Ids = MockIds()
         val s1 = mockSyncStorage(
             transformer = transformer,
-            hashes = Hashes.MD5,
+            hashes = hashes,
+            times = times,
+            ids = ids,
         )
         val p11 = s1.add("v11")
         val p12 = s1.add("v12")
@@ -19,7 +26,9 @@ internal class CommitTest {
         //
         val s2 = mockSyncStorage(
             transformer = transformer,
-            hashes = Hashes.MD5,
+            hashes = hashes,
+            times = times,
+            ids = ids,
         )
         val p21 = s2.add("v21")
         val p22 = s2.add("v22")
@@ -37,8 +46,7 @@ internal class CommitTest {
                 expected = expected,
                 actual = valueStates,
                 assert = { expected, actual ->
-                    assertEquals(expected.updated, actual.updated)
-                    assertTrue(expected.hash.contentEquals(actual.hash))
+                    assertEquals(expected, actual)
                 },
             )
         }
@@ -88,11 +96,11 @@ internal class CommitTest {
         }
         //
         assertTrue(s2.commit(commitState = commitState))
-        s1.items.also { items ->
+        s1.payloads.also { payloads ->
             val expected = listOf(p11, p12, p13, p21, p22, p23)
             assertEquals(
                 expected = expected,
-                actual = items,
+                actual = payloads,
                 comparator = Comparators.payloads,
                 assert = { index, expected, actual ->
                     assertEquals(expected = expected, actual = actual, message = "index: $index")
@@ -101,7 +109,7 @@ internal class CommitTest {
         }
         //
         s1.delete(p11.valueInfo.id)
-        val vs12 = s1.set(p12.valueInfo.id, "v12_updated")
+        val vs12 = s1.update(id = p12.valueInfo.id, value = "v12_updated")
         checkNotNull(vs12)
         val p12u = Payload(
             value = "v12_updated",
@@ -109,7 +117,7 @@ internal class CommitTest {
             valueInfo = p12.valueInfo,
         )
         s2.delete(p21.valueInfo.id)
-        val vs22 = s2.set(p22.valueInfo.id, "v22_updated")
+        val vs22 = s2.update(id = p22.valueInfo.id, value = "v22_updated")
         checkNotNull(vs22)
         val p22u = Payload(
             value = "v22_updated",
@@ -118,11 +126,11 @@ internal class CommitTest {
         )
         //
         assertTrue(s2.commit(commitState = s1.merge(mergeState = s2.getMergeState(syncState = s1.getSyncState()))))
-        s1.items.also { items ->
+        s1.payloads.also { payloads ->
             val expected = listOf(p12u, p13, p22u, p23)
             assertEquals(
                 expected = expected,
-                actual = items,
+                actual = payloads,
                 comparator = Comparators.payloads,
                 assert = { index, expected, actual ->
                     assertEquals(expected = expected, actual = actual, message = "index: $index")
