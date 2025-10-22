@@ -8,6 +8,7 @@ import sp.kx.bytes.readUUID
 import sp.kx.bytes.writeBytes
 import sp.kx.hashes.Hashes
 import sp.kx.streamers.MutableStreamer
+import sp.kx.times.Times
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
 import java.util.UUID
@@ -18,6 +19,7 @@ class RealSyncStorage<T : Any>(
     private val streamer: MutableStreamer,
     private val transformer: Transformer<T>,
     private val hashes: Hashes,
+    private val times: Times,
 ) : SyncStorage<T> {
     init {
         val value = streamer.reader().use { it.read() }
@@ -225,7 +227,7 @@ class RealSyncStorage<T : Any>(
     }
 
     override fun add(value: T): Payload<T> {
-        val created = System.currentTimeMillis().milliseconds // todo
+        val created = times.now()
         val payload = Payload(
             value = value,
             valueInfo = ValueInfo(
@@ -261,7 +263,7 @@ class RealSyncStorage<T : Any>(
             if (it.valueInfo.id == id) {
                 items.removeAt(index)
                 val valueState = ValueState(
-                    updated = System.currentTimeMillis().milliseconds, // todo
+                    updated = times.now(),
                     hash = hashes.map(transformer.encode(value)),
                 )
                 val payload = Payload(

@@ -59,6 +59,7 @@ dependencies {
     implementation("com.github.kepocnhh:Hashes:0.1.0-SNAPSHOT")
     implementation("com.github.kepocnhh:Storages:0.11.0u-SNAPSHOT")
     implementation("com.github.kepocnhh:Streamers:0.1.0-SNAPSHOT")
+    implementation("com.github.kepocnhh:Times:0.0.1-SNAPSHOT")
     testImplementation("org.junit.jupiter:junit-jupiter-api:${Version.jupiter}")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:${Version.jupiter}")
 }
