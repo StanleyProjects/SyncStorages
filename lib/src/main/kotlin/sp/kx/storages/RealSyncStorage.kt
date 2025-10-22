@@ -27,14 +27,14 @@ class RealSyncStorage<T : Any>(
         val value = streamer.reader().use { it.read() }
         if (value < 0) streamer.writer().use {
             it.writeBytes(0) // deleted
-            it.writeBytes(0) // items
+            it.writeBytes(0) // payloads
         }
     }
 
-    override val items: List<Payload<T>>
+    override val payloads: List<Payload<T>>
         get() {
             return streamer.reader().use { stream ->
-                getItems(stream = stream, transformer = transformer)
+                getPayloads(stream = stream, transformer = transformer)
             }
         }
 
@@ -47,14 +47,14 @@ class RealSyncStorage<T : Any>(
 
     private fun write(
         deleted: Set<UUID> = this.deleted,
-        items: List<Payload<T>>,
+        payloads: List<Payload<T>>,
     ) {
         streamer.writer().use { stream ->
             stream.writeBytes(deleted.size)
             deleted.forEach(stream::writeBytes)
             //
-            stream.writeBytes(items.size)
-            items.forEach { payload ->
+            stream.writeBytes(payloads.size)
+            payloads.forEach { payload ->
                 stream.writeBytes(payload.valueInfo.id)
                 stream.writeBytes(payload.valueInfo.created.inWholeMilliseconds)
                 stream.writeBytes(payload.valueState.updated.inWholeMilliseconds)
@@ -99,14 +99,14 @@ class RealSyncStorage<T : Any>(
         )
     }
 
-    private fun <U : Any> getItems(stream: InputStream, transformer: Transformer<U>): List<Payload<U>> {
+    private fun <U : Any> getPayloads(stream: InputStream, transformer: Transformer<U>): List<Payload<U>> {
         stream.skip((stream.readInt() * 16).toLong()) // deleted
         return (0 until stream.readInt()).map { index ->
             stream.readPayload(transformer = transformer)
         }
     }
 
-    private fun getItems(stream: InputStream): List<Payload<ByteArray>> {
+    private fun getPayloads(stream: InputStream): List<Payload<ByteArray>> {
         stream.skip((stream.readInt() * 16).toLong()) // deleted
         return (0 until stream.readInt()).map { index ->
             stream.readPayload()
@@ -138,14 +138,14 @@ class RealSyncStorage<T : Any>(
             val downloaded = HashSet<UUID>()
             val encoded = mutableListOf<Payload<ByteArray>>()
             val deleted = deleted
-            val items = getItems(stream = stream)
-            for (payload in items) {
+            val payloads = getPayloads(stream = stream)
+            for (payload in payloads) {
                 if (syncState.valueStates.containsKey(payload.valueInfo.id)) continue
                 if (syncState.deleted.contains(payload.valueInfo.id)) continue
                 encoded.add(payload)
             }
             for ((id, valueState) in syncState.valueStates) {
-                val payload = items.firstOrNull { it.valueInfo.id == id }
+                val payload = payloads.firstOrNull { it.valueInfo.id == id }
                 if (payload == null) {
                     if (deleted.contains(id)) continue
                     downloaded.add(id)
@@ -186,7 +186,7 @@ class RealSyncStorage<T : Any>(
         val deleted = deleted
         val payloads = mutableListOf<Payload<T>>()
         val encoded = mutableListOf<Payload<ByteArray>>()
-        for (item in streamer.reader().use(::getItems)) {
+        for (item in streamer.reader().use(::getPayloads)) {
             if (mergeState.deleted.contains(item.valueInfo.id)) continue
             if (mergeState.encoded.any { it.valueInfo.id == item.valueInfo.id }) continue
             if (mergeState.downloaded.contains(item.valueInfo.id)) encoded.add(item)
@@ -197,7 +197,7 @@ class RealSyncStorage<T : Any>(
         }
         payloads.sortWith(Comparators.payloads)
         write(
-            items = payloads,
+            payloads = payloads,
             deleted = deleted + mergeState.deleted,
         )
         return CommitState(
@@ -210,7 +210,7 @@ class RealSyncStorage<T : Any>(
     override fun commit(commitState: CommitState): Boolean {
         val payloads = mutableListOf<Payload<T>>()
         // todo no changes
-        for (item in items) {
+        for (item in payloads) {
             if (commitState.deleted.contains(item.valueInfo.id)) continue
             if (commitState.encoded.any { it.valueInfo.id == item.valueInfo.id }) continue
             payloads += item
@@ -222,7 +222,7 @@ class RealSyncStorage<T : Any>(
         val hash = hashes.map(bytesOf(payloads = payloads))
         check(hash.contentEquals(commitState.hash)) { "Wrong hash!" }
         write(
-            items = payloads,
+            payloads = payloads,
             deleted = deleted + commitState.deleted,
         )
         return true
@@ -241,29 +241,29 @@ class RealSyncStorage<T : Any>(
                 hash = hashes.map(transformer.encode(value)),
             ),
         )
-        write(items = items + payload)
+        write(payloads = payloads + payload)
         return payload
     }
 
     override fun delete(id: UUID): Boolean {
-        val items = items.toMutableList()
-        for (index in items.indices) {
-            val it = items[index]
+        val payloads = payloads.toMutableList()
+        for (index in payloads.indices) {
+            val it = payloads[index]
             if (it.valueInfo.id == id) {
-                items.removeAt(index)
-                write(deleted = deleted + id, items = items)
+                payloads.removeAt(index)
+                write(deleted = deleted + id, payloads = payloads)
                 return true
             }
         }
         return false
     }
 
-    override fun set(id: UUID, value: T): ValueState? {
-        val items = items.toMutableList()
-        for (index in items.indices) {
-            val it = items[index]
+    override fun update(id: UUID, value: T): ValueState? {
+        val payloads = payloads.toMutableList()
+        for (index in payloads.indices) {
+            val it = payloads[index]
             if (it.valueInfo.id == id) {
-                items.removeAt(index)
+                payloads.removeAt(index)
                 val valueState = ValueState(
                     updated = times.now(),
                     hash = hashes.map(transformer.encode(value)),
@@ -273,7 +273,7 @@ class RealSyncStorage<T : Any>(
                     valueInfo = it.valueInfo,
                     valueState = valueState,
                 )
-                write(items = items + payload)
+                write(payloads = payloads + payload)
                 return valueState
             }
         }
