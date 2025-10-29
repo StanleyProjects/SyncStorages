@@ -23,14 +23,6 @@ class RealSyncStorage<T : Any>(
     private val times: Times,
     private val ids: Ids,
 ) : SyncStorage<T> {
-    init {
-        val value = streamer.reader().use { it.read() }
-        if (value < 0) streamer.writer().use {
-            it.writeBytes(0) // deleted
-            it.writeBytes(0) // payloads
-        }
-    }
-
     override val payloads: List<Payload<T>>
         get() {
             return streamer.reader().use { stream ->

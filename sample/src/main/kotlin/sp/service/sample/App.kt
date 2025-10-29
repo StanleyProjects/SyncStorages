@@ -3,7 +3,8 @@ package sp.service.sample
 import sp.kx.bytes.Transformer
 import sp.kx.hashes.Hashes
 import sp.kx.ids.RealIds
-import sp.kx.storages.SyncStorages
+import sp.kx.storages.MutableStorages
+import sp.kx.storages.RealStorages
 import sp.kx.times.RealTimes
 import java.io.File
 import java.util.UUID
@@ -20,7 +21,7 @@ fun main() {
     }
     val dir = File("/tmp/storages-${System.currentTimeMillis()}")
     check(dir.mkdir())
-    val storages = SyncStorages.Builder()
+    val storages: MutableStorages = RealStorages.Builder()
         .add(id = UUID.randomUUID(), type = String::class.java, transformer = transformer)
         .build(
             dir = dir,
