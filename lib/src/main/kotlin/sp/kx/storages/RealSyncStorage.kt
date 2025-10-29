@@ -13,6 +13,8 @@ import sp.kx.streamers.Streamer
 import sp.kx.times.Times
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
+import java.io.OutputStream
+import java.util.Collections
 import java.util.UUID
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -41,18 +43,12 @@ internal class RealSyncStorage<T : Any>(
         payloads: List<Payload<T>>,
     ) {
         streamer.writer().use { stream ->
-            stream.writeBytes(deleted.size)
-            deleted.forEach(stream::writeBytes)
-            //
-            stream.writeBytes(payloads.size)
-            payloads.forEach { payload ->
-                stream.writeBytes(payload.valueInfo.id)
-                stream.writeBytes(payload.valueInfo.created.inWholeMilliseconds)
-                stream.writeBytes(payload.valueState.updated.inWholeMilliseconds)
-                val encoded = transformer.encode(payload.value)
-                stream.writeBytes(encoded.size)
-                stream.write(encoded)
-            }
+            write(
+                stream = stream,
+                deleted = deleted,
+                payloads = payloads,
+                transformer = transformer,
+            )
         }
     }
 
@@ -106,36 +102,12 @@ internal class RealSyncStorage<T : Any>(
         }
     }
 
-    private fun <U : Any> Payload<ByteArray>.map(transformer: Transformer<U>): Payload<U> {
-        return Payload(
-            value = transformer.decode(value),
-            valueInfo = valueInfo,
-            valueState = valueState,
-        )
-    }
-
     override fun merge(mergeState: MergeState): CommitState {
-        val deleted = deleted
-        val payloads = mutableListOf<Payload<T>>()
-        val encoded = mutableListOf<Payload<ByteArray>>()
-        for (payload in streamer.reader().use { stream -> readPayloads(stream = stream, hashes = hashes) }) {
-            if (mergeState.deleted.contains(payload.valueInfo.id)) continue
-            if (mergeState.encoded.any { it.valueInfo.id == payload.valueInfo.id }) continue
-            if (mergeState.downloaded.contains(payload.valueInfo.id)) encoded.add(payload)
-            payloads += payload.map(transformer)
-        }
-        for (payload in mergeState.encoded) {
-            payloads += payload.map(transformer)
-        }
-        payloads.sortWith(Comparators.payloads)
-        write(
-            payloads = payloads,
-            deleted = deleted + mergeState.deleted,
-        )
-        return CommitState(
-            hash = hashes.map(bytesOf(payloads = payloads)),
-            encoded = encoded,
-            deleted = deleted,
+        return merge(
+            streamer = streamer,
+            hashes = hashes,
+            transformer = transformer,
+            mergeState = mergeState,
         )
     }
 
@@ -241,6 +213,45 @@ internal class RealSyncStorage<T : Any>(
     }
 
     companion object {
+        private fun <T : Any> Payload<ByteArray>.map(transformer: Transformer<T>): Payload<T> {
+            return Payload(
+                value = transformer.decode(value),
+                valueInfo = valueInfo,
+                valueState = valueState,
+            )
+        }
+
+        private fun bytesOf(payloads: List<Payload<out Any>>): ByteArray {
+            return ByteArrayOutputStream().use { stream ->
+                payloads.forEach { payload ->
+                    stream.writeBytes(payload.valueInfo.id)
+                    stream.writeBytes(payload.valueState.updated.inWholeMilliseconds)
+                    stream.writeBytes(payload.valueState.hash)
+                }
+                stream.toByteArray()
+            }
+        }
+
+        private fun <T : Any> write(
+            stream: OutputStream,
+            deleted: Set<UUID>,
+            payloads: List<Payload<out T>>,
+            transformer: Transformer<in T>,
+        ) {
+            stream.writeBytes(deleted.size)
+            deleted.forEach(stream::writeBytes)
+            //
+            stream.writeBytes(payloads.size)
+            payloads.forEach { payload ->
+                stream.writeBytes(payload.valueInfo.id)
+                stream.writeBytes(payload.valueInfo.created.inWholeMilliseconds)
+                stream.writeBytes(payload.valueState.updated.inWholeMilliseconds)
+                val encoded = transformer.encode(payload.value)
+                stream.writeBytes(encoded.size)
+                stream.write(encoded)
+            }
+        }
+
         private fun readPayload(stream: InputStream, hashes: Hashes): Payload<ByteArray> {
             val valueInfo = ValueInfo(
                 id = stream.readUUID(),
@@ -321,6 +332,43 @@ internal class RealSyncStorage<T : Any>(
                     deleted = deleted,
                 )
             }
+        }
+
+        fun <T : Any> merge(
+            streamer: MutableStreamer,
+            hashes: Hashes,
+            transformer: Transformer<T>,
+            mergeState: MergeState,
+        ): CommitState {
+            val deleted = mutableSetOf<UUID>()
+            val payloads = mutableListOf<Payload<T>>()
+            val encoded = mutableListOf<Payload<ByteArray>>()
+            streamer.reader().use { stream ->
+                deleted += readDeleted(stream = stream)
+                for (payload in readPayloads(stream = stream, hashes = hashes)) {
+                    if (mergeState.deleted.contains(payload.valueInfo.id)) continue
+                    if (mergeState.encoded.any { it.valueInfo.id == payload.valueInfo.id }) continue
+                    if (mergeState.downloaded.contains(payload.valueInfo.id)) encoded.add(payload)
+                    payloads += payload.map(transformer)
+                }
+                for (payload in mergeState.encoded) {
+                    payloads += payload.map(transformer)
+                }
+            }
+            payloads.sortWith(Comparators.payloads)
+            streamer.writer().use { stream ->
+                write(
+                    stream = stream,
+                    deleted = deleted + mergeState.deleted,
+                    payloads = payloads,
+                    transformer = transformer,
+                )
+            }
+            return CommitState(
+                hash = hashes.map(bytesOf(payloads = payloads)),
+                encoded = encoded,
+                deleted = deleted,
+            )
         }
     }
 }

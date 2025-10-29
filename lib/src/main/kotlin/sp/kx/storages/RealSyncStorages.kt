@@ -91,4 +91,19 @@ class RealSyncStorages private constructor(
         }
         return mergeStates
     }
+
+    override fun merge(mergeStates: Map<UUID, MergeState>): Map<UUID, CommitState> {
+        val commitStates = mutableMapOf<UUID, CommitState>()
+        for ((id, mergeState) in mergeStates) {
+            val transformer = transformers[id]?.delegate ?: error("No storage by ID: \"$id\"!")
+            val src = dir.resolve(id.toString())
+            commitStates[id] = RealSyncStorage.merge(
+                streamer = MutableFileStreamer(src = src),
+                hashes = hashes,
+                transformer = transformer,
+                mergeState = mergeState,
+            )
+        }
+        return commitStates
+    }
 }
