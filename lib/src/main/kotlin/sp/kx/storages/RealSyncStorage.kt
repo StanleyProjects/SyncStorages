@@ -9,13 +9,14 @@ import sp.kx.bytes.writeBytes
 import sp.kx.hashes.Hashes
 import sp.kx.ids.Ids
 import sp.kx.streamers.MutableStreamer
+import sp.kx.streamers.Streamer
 import sp.kx.times.Times
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
 import java.util.UUID
 import kotlin.time.Duration.Companion.milliseconds
 
-class RealSyncStorage<T : Any>(
+internal class RealSyncStorage<T : Any>(
     override val id: UUID,
     private val streamer: MutableStreamer,
     private val transformer: Transformer<T>,
@@ -106,23 +107,7 @@ class RealSyncStorage<T : Any>(
     }
 
     override fun getSyncState(): SyncState {
-        return streamer.reader().use { stream ->
-            val deleted: Set<UUID> = (0 until stream.readInt()).mapTo(HashSet()) { stream.readUUID() }
-            val valueStates = (0 until stream.readInt()).associate { index ->
-                val id = stream.readUUID()
-                stream.skip(8) // created
-                val updated = stream.readLong().milliseconds
-                val encoded = stream.readBytes(stream.readInt())
-                id to ValueState(
-                    updated = updated,
-                    hash = hashes.map(encoded),
-                )
-            }
-            SyncState(
-                valueStates = valueStates,
-                deleted = deleted,
-            )
-        }
+        return getSyncState(streamer = streamer, hashes = hashes)
     }
 
     override fun getMergeState(syncState: SyncState): MergeState {
@@ -298,5 +283,27 @@ class RealSyncStorage<T : Any>(
             }
         }
         return null
+    }
+
+    companion object {
+        fun getSyncState(streamer: Streamer, hashes: Hashes): SyncState {
+            return streamer.reader().use { stream ->
+                val deleted: Set<UUID> = (0 until stream.readInt()).mapTo(HashSet()) { stream.readUUID() }
+                val valueStates = (0 until stream.readInt()).associate { index ->
+                    val id = stream.readUUID()
+                    stream.skip(8) // created
+                    val updated = stream.readLong().milliseconds
+                    val encoded = stream.readBytes(stream.readInt())
+                    id to ValueState(
+                        updated = updated,
+                        hash = hashes.map(encoded),
+                    )
+                }
+                SyncState(
+                    valueStates = valueStates,
+                    deleted = deleted,
+                )
+            }
+        }
     }
 }

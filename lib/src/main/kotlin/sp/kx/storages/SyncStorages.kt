@@ -1,5 +1,5 @@
 package sp.kx.storages
 
 interface SyncStorages : MutableStorages {
-    // todo
+    fun getSyncStates(): SyncStates
 }

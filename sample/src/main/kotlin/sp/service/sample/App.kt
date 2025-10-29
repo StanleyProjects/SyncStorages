@@ -4,7 +4,7 @@ import sp.kx.bytes.Transformer
 import sp.kx.hashes.Hashes
 import sp.kx.ids.RealIds
 import sp.kx.storages.MutableStorages
-import sp.kx.storages.RealStorages
+import sp.kx.storages.RealSyncStorages
 import sp.kx.times.RealTimes
 import java.io.File
 import java.util.UUID
@@ -21,7 +21,7 @@ fun main() {
     }
     val dir = File("/tmp/storages-${System.currentTimeMillis()}")
     check(dir.mkdir())
-    val storages: MutableStorages = RealStorages.Builder()
+    val storages: MutableStorages = RealSyncStorages.Builder()
         .add(id = UUID.randomUUID(), type = String::class.java, transformer = transformer)
         .build(
             dir = dir,

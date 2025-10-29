@@ -5,11 +5,12 @@ import sp.kx.bytes.writeBytes
 import sp.kx.hashes.Hashes
 import sp.kx.ids.Ids
 import sp.kx.streamers.MutableFileStreamer
+import sp.kx.streamers.MutableStreamer
 import sp.kx.times.Times
 import java.io.File
 import java.util.UUID
 
-class RealStorages private constructor(
+class RealSyncStorages private constructor(
     private val dir: File,
     private val transformers: Map<UUID, CompositeTransformer<out Any>>,
     private val hashes: Hashes,
@@ -33,7 +34,7 @@ class RealStorages private constructor(
         ): SyncStorages {
             if (transformers.isEmpty()) error("Empty storages!")
             // todo check dir
-            return RealStorages(
+            return RealSyncStorages(
                 dir = dir,
                 transformers = transformers,
                 hashes = hashes,
@@ -45,7 +46,7 @@ class RealStorages private constructor(
 
     override fun <T : Any> get(type: Class<T>): MutableStorage<T>? {
         for ((id, it) in transformers) {
-            val transformer = it.getTransformer(type) ?: continue
+            val transformer = it.getTransformer(type = type) ?: continue
             val src = dir.resolve(id.toString())
             if (src.length() == 0L) {
                 src.outputStream().use { stream ->
@@ -63,5 +64,17 @@ class RealStorages private constructor(
             )
         }
         return null
+    }
+
+    override fun getSyncStates(): SyncStates {
+        val values = mutableMapOf<UUID, SyncState>()
+        for ((id, _) in transformers) {
+            val src = dir.resolve(id.toString())
+            values[id] = RealSyncStorage.getSyncState(
+                streamer = MutableFileStreamer(src = src),
+                hashes = hashes,
+            )
+        }
+        return SyncStates(values = values)
     }
 }
