@@ -3,9 +3,7 @@ package sp.service.sample
 import sp.kx.bytes.Transformer
 import sp.kx.hashes.Hashes
 import sp.kx.ids.RealIds
-import sp.kx.storages.RealSyncStorage
-import sp.kx.storages.SyncStorage
-import sp.kx.streamers.MutableFileStreamer
+import sp.kx.storages.SyncStorages
 import sp.kx.times.RealTimes
 import java.io.File
 import java.util.UUID
@@ -20,14 +18,17 @@ fun main() {
             return decoded.toByteArray()
         }
     }
-    val storage: SyncStorage<String> = RealSyncStorage(
-        id = UUID.randomUUID(),
-        streamer = MutableFileStreamer(File.createTempFile("foo", "bar")),
-        transformer = transformer,
-        hashes = Hashes.MD5,
-        times = RealTimes(),
-        ids = RealIds(),
-    )
+    val dir = File("/tmp/${System.currentTimeMillis()}")
+    check(dir.mkdir())
+    val storages = SyncStorages.Builder()
+        .add(id = UUID.randomUUID(), type = String::class.java, transformer = transformer)
+        .build(
+            dir = dir,
+            hashes = Hashes.MD5,
+            times = RealTimes(),
+            ids = RealIds(),
+        )
+    val storage = storages[String::class.java] ?: error("No storage!")
     println("storage: ${storage.id}")
     check(storage.payloads.isEmpty())
     //
