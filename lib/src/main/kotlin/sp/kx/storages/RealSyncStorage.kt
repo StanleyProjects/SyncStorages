@@ -33,9 +33,7 @@ internal class RealSyncStorage<T : Any>(
 
     private val deleted: Set<UUID>
         get() {
-            return streamer.reader().use { stream ->
-                (0 until stream.readInt()).mapTo(HashSet()) { stream.readUUID() }
-            }
+            return streamer.reader().use(::readDeleted)
         }
 
     private fun write(
@@ -75,23 +73,6 @@ internal class RealSyncStorage<T : Any>(
         )
     }
 
-    private fun InputStream.readPayload(): Payload<ByteArray> {
-        val valueInfo = ValueInfo(
-            id = readUUID(),
-            created = readLong().milliseconds,
-        )
-        val updated = readLong().milliseconds
-        val encoded = readBytes(readInt())
-        return Payload(
-            value = encoded,
-            valueInfo = valueInfo,
-            valueState = ValueState(
-                updated = updated,
-                hash = hashes.map(encoded),
-            ),
-        )
-    }
-
     private fun <U : Any> getPayloads(stream: InputStream, transformer: Transformer<U>): List<Payload<U>> {
         stream.skip((stream.readInt() * 16).toLong()) // deleted
         return (0 until stream.readInt()).map { index ->
@@ -99,45 +80,19 @@ internal class RealSyncStorage<T : Any>(
         }
     }
 
-    private fun getPayloads(stream: InputStream): List<Payload<ByteArray>> {
-        stream.skip((stream.readInt() * 16).toLong()) // deleted
-        return (0 until stream.readInt()).map { index ->
-            stream.readPayload()
-        }
-    }
-
     override fun getSyncState(): SyncState {
-        return getSyncState(streamer = streamer, hashes = hashes)
+        return getSyncState(
+            streamer = streamer,
+            hashes = hashes,
+        )
     }
 
     override fun getMergeState(syncState: SyncState): MergeState {
-        return streamer.reader().use { stream ->
-            val downloaded = HashSet<UUID>()
-            val encoded = mutableListOf<Payload<ByteArray>>()
-            val deleted = deleted
-            val payloads = getPayloads(stream = stream)
-            for (payload in payloads) {
-                if (syncState.valueStates.containsKey(payload.valueInfo.id)) continue
-                if (syncState.deleted.contains(payload.valueInfo.id)) continue
-                encoded.add(payload)
-            }
-            for ((id, valueState) in syncState.valueStates) {
-                val payload = payloads.firstOrNull { it.valueInfo.id == id }
-                if (payload == null) {
-                    if (deleted.contains(id)) continue
-                    downloaded.add(id)
-                } else if (valueState.updated > payload.valueState.updated) {
-                    downloaded.add(id)
-                } else if (!valueState.hash.contentEquals(payload.valueState.hash)) {
-                    encoded.add(payload)
-                }
-            }
-            MergeState(
-                downloaded = downloaded,
-                encoded = encoded,
-                deleted = deleted,
-            )
-        }
+        return getMergeState(
+            streamer = streamer,
+            hashes = hashes,
+            syncState = syncState,
+        )
     }
 
     private fun bytesOf(payloads: List<Payload<out Any>>): ByteArray {
@@ -163,7 +118,7 @@ internal class RealSyncStorage<T : Any>(
         val deleted = deleted
         val payloads = mutableListOf<Payload<T>>()
         val encoded = mutableListOf<Payload<ByteArray>>()
-        for (payload in streamer.reader().use(::getPayloads)) {
+        for (payload in streamer.reader().use { stream -> readPayloads(stream = stream, hashes = hashes) }) {
             if (mergeState.deleted.contains(payload.valueInfo.id)) continue
             if (mergeState.encoded.any { it.valueInfo.id == payload.valueInfo.id }) continue
             if (mergeState.downloaded.contains(payload.valueInfo.id)) encoded.add(payload)
@@ -286,6 +241,34 @@ internal class RealSyncStorage<T : Any>(
     }
 
     companion object {
+        private fun readPayload(stream: InputStream, hashes: Hashes): Payload<ByteArray> {
+            val valueInfo = ValueInfo(
+                id = stream.readUUID(),
+                created = stream.readLong().milliseconds,
+            )
+            val updated = stream.readLong().milliseconds
+            val encoded = stream.readBytes(stream.readInt())
+            return Payload(
+                value = encoded,
+                valueInfo = valueInfo,
+                valueState = ValueState(
+                    updated = updated,
+                    hash = hashes.map(encoded),
+                ),
+            )
+        }
+
+        private fun readPayloads(stream: InputStream, hashes: Hashes): List<Payload<ByteArray>> {
+            stream.skip((stream.readInt() * 16).toLong()) // deleted
+            return (0 until stream.readInt()).map { index ->
+                readPayload(stream = stream, hashes = hashes)
+            }
+        }
+
+        private fun readDeleted(stream: InputStream): Set<UUID> {
+            return (0 until stream.readInt()).mapTo(HashSet()) { stream.readUUID() }
+        }
+
         fun getSyncState(streamer: Streamer, hashes: Hashes): SyncState {
             return streamer.reader().use { stream ->
                 val deleted: Set<UUID> = (0 until stream.readInt()).mapTo(HashSet()) { stream.readUUID() }
@@ -301,6 +284,40 @@ internal class RealSyncStorage<T : Any>(
                 }
                 SyncState(
                     valueStates = valueStates,
+                    deleted = deleted,
+                )
+            }
+        }
+
+        fun getMergeState(
+            streamer: Streamer,
+            hashes: Hashes,
+            syncState: SyncState,
+        ): MergeState {
+            return streamer.reader().use { stream ->
+                val downloaded = HashSet<UUID>()
+                val encoded = mutableListOf<Payload<ByteArray>>()
+                val deleted = readDeleted(stream = stream)
+                val payloads = readPayloads(stream = stream, hashes = hashes)
+                for (payload in payloads) {
+                    if (syncState.valueStates.containsKey(payload.valueInfo.id)) continue
+                    if (syncState.deleted.contains(payload.valueInfo.id)) continue
+                    encoded.add(payload)
+                }
+                for ((id, valueState) in syncState.valueStates) {
+                    val payload = payloads.firstOrNull { it.valueInfo.id == id }
+                    if (payload == null) {
+                        if (deleted.contains(id)) continue
+                        downloaded.add(id)
+                    } else if (valueState.updated > payload.valueState.updated) {
+                        downloaded.add(id)
+                    } else if (!valueState.hash.contentEquals(payload.valueState.hash)) {
+                        encoded.add(payload)
+                    }
+                }
+                MergeState(
+                    downloaded = downloaded,
+                    encoded = encoded,
                     deleted = deleted,
                 )
             }

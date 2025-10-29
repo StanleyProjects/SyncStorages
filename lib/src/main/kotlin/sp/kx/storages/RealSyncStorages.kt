@@ -4,6 +4,7 @@ import sp.kx.bytes.Transformer
 import sp.kx.bytes.writeBytes
 import sp.kx.hashes.Hashes
 import sp.kx.ids.Ids
+import sp.kx.streamers.FileStreamer
 import sp.kx.streamers.MutableFileStreamer
 import sp.kx.streamers.MutableStreamer
 import sp.kx.times.Times
@@ -66,15 +67,28 @@ class RealSyncStorages private constructor(
         return null
     }
 
-    override fun getSyncStates(): SyncStates {
-        val values = mutableMapOf<UUID, SyncState>()
+    override fun getSyncStates(): Map<UUID, SyncState> {
+        val syncStates = mutableMapOf<UUID, SyncState>()
         for ((id, _) in transformers) {
             val src = dir.resolve(id.toString())
-            values[id] = RealSyncStorage.getSyncState(
-                streamer = MutableFileStreamer(src = src),
+            syncStates[id] = RealSyncStorage.getSyncState(
+                streamer = FileStreamer(delegate = src),
                 hashes = hashes,
             )
         }
-        return SyncStates(values = values)
+        return syncStates
+    }
+
+    override fun getMergeStates(syncStates: Map<UUID, SyncState>): Map<UUID, MergeState> {
+        val mergeStates = mutableMapOf<UUID, MergeState>()
+        for ((id, syncState) in syncStates) {
+            val src = dir.resolve(id.toString())
+            mergeStates[id] = RealSyncStorage.getMergeState(
+                streamer = FileStreamer(delegate = src),
+                hashes = hashes,
+                syncState = syncState,
+            )
+        }
+        return mergeStates
     }
 }
