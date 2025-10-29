@@ -18,7 +18,7 @@ fun main() {
             return decoded.toByteArray()
         }
     }
-    val dir = File("/tmp/${System.currentTimeMillis()}")
+    val dir = File("/tmp/storages-${System.currentTimeMillis()}")
     check(dir.mkdir())
     val storages = SyncStorages.Builder()
         .add(id = UUID.randomUUID(), type = String::class.java, transformer = transformer)
