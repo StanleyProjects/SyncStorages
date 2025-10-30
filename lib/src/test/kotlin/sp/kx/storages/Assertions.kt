@@ -1,6 +1,7 @@
 package sp.kx.storages
 
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 
 internal fun <T : Any> assertEquals(
     expected: Collection<T>,
@@ -37,8 +38,15 @@ internal fun <K : Comparable<K>, V : Any> assertEquals(
     }
 }
 
-internal fun <T : Any> assertEquals(expected: Payload<out T>, actual: Payload<out T>, message: String = "${expected.valueInfo.id}") {
-    assertEquals(expected.value, actual.value, message)
+internal fun assertEquals(expected: Payload<ByteArray>, actual: Payload<ByteArray>, message: String) {
+    assertEquals(expected.value.size, actual.value.size, message)
+    assertTrue(expected.value.contentEquals(actual.value), message)
     assertEquals(expected.valueInfo, actual.valueInfo, message)
     assertEquals(expected.valueState, actual.valueState, message)
+}
+
+internal fun <T : Comparable<T>> assertEquals(expected: Payload<out T>, actual: Payload<out T>) {
+    assertEquals(expected.value, actual.value)
+    assertEquals(expected.valueInfo, actual.valueInfo)
+    assertEquals(expected.valueState, actual.valueState)
 }
