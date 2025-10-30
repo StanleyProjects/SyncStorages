@@ -57,21 +57,6 @@ internal class SyncStorage<T : Any>(
         }
     }
 
-    fun getSyncState(): SyncState {
-        return getSyncState(
-            streamer = streamer,
-            hashes = hashes,
-        )
-    }
-
-    fun getMergeState(syncState: SyncState): MergeState {
-        return getMergeState(
-            streamer = streamer,
-            hashes = hashes,
-            syncState = syncState,
-        )
-    }
-
     fun merge(mergeState: MergeState): CommitState {
         return merge(
             streamer = streamer,
@@ -247,8 +232,10 @@ internal class SyncStorage<T : Any>(
         fun getSyncState(streamer: Streamer, hashes: Hashes): SyncState {
             val deleted = HashSet<UUID>()
             return streamer.reader().use { stream ->
-                (0 until stream.readInt()).mapTo(deleted) { stream.readUUID() }
-                val valueStates = (0 until stream.readInt()).associate { index ->
+                (0 until stream.readInt()).forEach { _ ->
+                    deleted.add(stream.readUUID())
+                }
+                val valueStates = (0 until stream.readInt()).associate { _ ->
                     val id = stream.readUUID()
                     stream.skip(8) // created
                     val updated = stream.readLong().milliseconds
@@ -273,8 +260,10 @@ internal class SyncStorage<T : Any>(
             val deleted = HashSet<UUID>()
             val locals: List<Payload<ByteArray>>
             streamer.reader().use { stream ->
-                (0 until stream.readInt()).mapTo(deleted) { stream.readUUID() }
-                locals = (0 until stream.readInt()).map { index ->
+                (0 until stream.readInt()).forEach { _ ->
+                    deleted.add(stream.readUUID())
+                }
+                locals = (0 until stream.readInt()).map { _ ->
                     readPayload(stream = stream, hashes = hashes)
                 }
             }
@@ -312,8 +301,10 @@ internal class SyncStorage<T : Any>(
             val deleted = HashSet<UUID>()
             val locals: List<Payload<ByteArray>>
             streamer.reader().use { stream ->
-                (0 until stream.readInt()).mapTo(deleted) { stream.readUUID() }
-                locals = (0 until stream.readInt()).map { index ->
+                (0 until stream.readInt()).forEach { _ ->
+                    deleted.add(stream.readUUID())
+                }
+                locals = (0 until stream.readInt()).map { _ ->
                     readPayload(stream = stream, hashes = hashes)
                 }
             }
@@ -323,13 +314,13 @@ internal class SyncStorage<T : Any>(
                 if (mergeState.deleted.contains(payload.valueInfo.id)) continue
                 if (mergeState.encoded.any { it.valueInfo.id == payload.valueInfo.id }) continue
                 if (mergeState.downloaded.contains(payload.valueInfo.id)) encoded.add(payload)
-                payloads += payload.map(transformer)
+                payloads.add(payload.map(transformer))
             }
             for (payload in mergeState.encoded) {
-                payloads += payload.map(transformer)
+                payloads.add(payload.map(transformer))
             }
             payloads.sortWith(Comparators.payloads)
-            deleted += mergeState.deleted
+            deleted.addAll(mergeState.deleted)
             streamer.writer().use { stream ->
                 write(
                     stream = stream,
@@ -355,17 +346,19 @@ internal class SyncStorage<T : Any>(
             val payloads = mutableListOf<Payload<T>>()
             // todo no changes
             streamer.reader().use { stream ->
-                (0 until stream.readInt()).mapTo(deleted) { stream.readUUID() }
-                val locals = (0 until stream.readInt()).map { index ->
+                (0 until stream.readInt()).forEach { _ ->
+                    deleted.add(stream.readUUID())
+                }
+                val locals = (0 until stream.readInt()).map { _ ->
                     readPayload(stream = stream, hashes = hashes, transformer = transformer)
                 }
                 for (payload in locals) {
                     if (commitState.deleted.contains(payload.valueInfo.id)) continue
                     if (commitState.encoded.any { it.valueInfo.id == payload.valueInfo.id }) continue
-                    payloads += payload
+                    payloads.add(payload)
                 }
                 for (payload in commitState.encoded) {
-                    payloads += payload.map(transformer)
+                    payloads.add(payload.map(transformer))
                 }
             }
             payloads.sortWith(Comparators.payloads)

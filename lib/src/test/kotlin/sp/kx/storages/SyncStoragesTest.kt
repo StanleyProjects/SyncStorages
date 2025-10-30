@@ -164,32 +164,19 @@ internal class SyncStoragesTest {
         val p221 = s22.add(value = 422)
         //
         assertEquals(
-            expected = Payload(
-                value = "v2",
-                valueInfo = ValueInfo(
-                    id = UUID(0, 4),
-                    created = 2.milliseconds,
-                ),
-                valueState = ValueState(
-                    updated = 2.milliseconds,
-                    hash = testSuite.hashOf(value = "v2"),
-                ),
-            ),
-            actual = s21.payloads.single(),
-        )
-        //
-        assertEquals(
             expected = mapOf(
                 s11.id to mockMergeState(
                     downloaded = setOf(p111.valueInfo.id),
+                    encoded = listOf(Transformers.Strings.map(payload = p211)),
                 ),
                 s12.id to mockMergeState(
                     downloaded = setOf(p121.valueInfo.id),
+                    encoded = listOf(Transformers.Ints.map(payload = p221)),
                 ),
             ),
             actual = testSuite.s2.getMergeStates(syncStates = testSuite.s1.getSyncStates()),
             assert = { expected, actual ->
-                assertEquals(expected = expected.downloaded, actual = actual.downloaded)
+                assertEquals(expected = expected.downloaded, actual = actual.downloaded, message = "downloaded")
                 assertEquals(
                     expected = expected.encoded,
                     actual = actual.encoded,
@@ -200,7 +187,35 @@ internal class SyncStoragesTest {
                         assertTrue(e.value.contentEquals(a.value), "index: $index")
                     },
                 )
-                assertEquals(expected = expected.deleted, actual = actual.deleted)
+                assertEquals(expected = expected.deleted, actual = actual.deleted, message = "deleted")
+            },
+        )
+        //
+        assertEquals(
+            expected = mapOf(
+                s21.id to mockMergeState(
+                    downloaded = setOf(p211.valueInfo.id),
+                    encoded = listOf(Transformers.Strings.map(payload = p111)),
+                ),
+                s22.id to mockMergeState(
+                    downloaded = setOf(p221.valueInfo.id),
+                    encoded = listOf(Transformers.Ints.map(payload = p121)),
+                ),
+            ),
+            actual = testSuite.s1.getMergeStates(syncStates = testSuite.s2.getSyncStates()),
+            assert = { expected, actual ->
+                assertEquals(expected = expected.downloaded, actual = actual.downloaded, message = "downloaded")
+                assertEquals(
+                    expected = expected.encoded,
+                    actual = actual.encoded,
+                    comparator = Comparators.payloads,
+                    assert = { index, e, a ->
+                        assertEquals(e.valueInfo, a.valueInfo)
+                        assertEquals(e.valueState, a.valueState)
+                        assertTrue(e.value.contentEquals(a.value), "index: $index")
+                    },
+                )
+                assertEquals(expected = expected.deleted, actual = actual.deleted, message = "deleted")
             },
         )
     }

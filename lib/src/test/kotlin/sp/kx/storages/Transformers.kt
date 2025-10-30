@@ -13,6 +13,14 @@ internal object Transformers {
         override fun encode(decoded: Int): ByteArray {
             return decoded.toByteArray()
         }
+
+        fun map(payload: Payload<Int>): Payload<ByteArray> {
+            return Payload(
+                value = encode(decoded = payload.value),
+                valueInfo = payload.valueInfo,
+                valueState = payload.valueState,
+            )
+        }
     }
 
     object Strings : Transformer<String> {
@@ -22,6 +30,14 @@ internal object Transformers {
 
         override fun encode(decoded: String): ByteArray {
             return decoded.toByteArray()
+        }
+
+        fun map(payload: Payload<String>): Payload<ByteArray> {
+            return Payload(
+                value = encode(decoded = payload.value),
+                valueInfo = payload.valueInfo,
+                valueState = payload.valueState,
+            )
         }
     }
 }
