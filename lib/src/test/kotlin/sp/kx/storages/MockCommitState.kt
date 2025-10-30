@@ -2,13 +2,13 @@ package sp.kx.storages
 
 import java.util.UUID
 
-internal fun mockMergeState(
-    picks: Set<UUID> = emptySet(),
+internal fun mockCommitState(
+    hash: ByteArray = byteArrayOf(4, 3, 2, 1),
     gives: List<Payload<ByteArray>> = emptyList(),
     deleted: Set<UUID> = emptySet(),
-): MergeState {
-    return MergeState(
-        picks = picks,
+): CommitState {
+    return CommitState(
+        hash = hash,
         gives = gives,
         deleted = deleted,
     )

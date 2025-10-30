@@ -57,15 +57,6 @@ internal class SyncStorage<T : Any>(
         }
     }
 
-    fun merge(mergeState: MergeState): CommitState {
-        return merge(
-            streamer = streamer,
-            hashes = hashes,
-            transformer = transformer,
-            mergeState = mergeState,
-        )
-    }
-
     fun commit(commitState: CommitState): Boolean {
         return commit(
             streamer = streamer,
@@ -267,27 +258,27 @@ internal class SyncStorage<T : Any>(
                     readPayload(stream = stream, hashes = hashes)
                 }
             }
-            val downloaded = HashSet<UUID>()
-            val encoded = mutableListOf<Payload<ByteArray>>()
+            val picks = HashSet<UUID>()
+            val gives = mutableListOf<Payload<ByteArray>>()
             for (payload in locals) {
                 if (syncState.valueStates.containsKey(payload.valueInfo.id)) continue
                 if (syncState.deleted.contains(payload.valueInfo.id)) continue
-                encoded.add(payload)
+                gives.add(payload)
             }
             for ((id, valueState) in syncState.valueStates) {
                 val payload = locals.firstOrNull { it.valueInfo.id == id }
                 if (payload == null) {
                     if (deleted.contains(id)) continue
-                    downloaded.add(id)
+                    picks.add(id)
                 } else if (valueState.updated > payload.valueState.updated) {
-                    downloaded.add(id)
+                    picks.add(id)
                 } else if (!valueState.hash.contentEquals(payload.valueState.hash)) {
-                    encoded.add(payload)
+                    gives.add(payload)
                 }
             }
             return MergeState(
-                downloaded = downloaded,
-                encoded = encoded,
+                picks = picks,
+                gives = gives,
                 deleted = deleted,
             )
         }
@@ -309,14 +300,14 @@ internal class SyncStorage<T : Any>(
                 }
             }
             val payloads = mutableListOf<Payload<T>>()
-            val encoded = mutableListOf<Payload<ByteArray>>()
+            val gives = mutableListOf<Payload<ByteArray>>()
             for (payload in locals) {
                 if (mergeState.deleted.contains(payload.valueInfo.id)) continue
-                if (mergeState.encoded.any { it.valueInfo.id == payload.valueInfo.id }) continue
-                if (mergeState.downloaded.contains(payload.valueInfo.id)) encoded.add(payload)
+                if (mergeState.gives.any { it.valueInfo.id == payload.valueInfo.id }) continue
+                if (mergeState.picks.contains(payload.valueInfo.id)) gives.add(payload)
                 payloads.add(payload.map(transformer))
             }
-            for (payload in mergeState.encoded) {
+            for (payload in mergeState.gives) {
                 payloads.add(payload.map(transformer))
             }
             payloads.sortWith(Comparators.payloads)
@@ -331,7 +322,7 @@ internal class SyncStorage<T : Any>(
             }
             return CommitState(
                 hash = hashes.map(bytesOf(payloads = payloads)),
-                encoded = encoded,
+                gives = gives,
                 deleted = deleted,
             )
         }
@@ -354,10 +345,10 @@ internal class SyncStorage<T : Any>(
                 }
                 for (payload in locals) {
                     if (commitState.deleted.contains(payload.valueInfo.id)) continue
-                    if (commitState.encoded.any { it.valueInfo.id == payload.valueInfo.id }) continue
+                    if (commitState.gives.any { it.valueInfo.id == payload.valueInfo.id }) continue
                     payloads.add(payload)
                 }
-                for (payload in commitState.encoded) {
+                for (payload in commitState.gives) {
                     payloads.add(payload.map(transformer))
                 }
             }

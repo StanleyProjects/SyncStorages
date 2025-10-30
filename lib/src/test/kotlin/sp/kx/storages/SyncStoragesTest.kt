@@ -4,7 +4,9 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
+import sp.kx.bytes.hex
 import java.io.File
+import java.util.HexFormat
 import java.util.UUID
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -122,7 +124,7 @@ internal class SyncStoragesTest {
                 ),
             ),
             actual = testSuite.s1.getSyncStates(),
-            assert = ::assertEquals,
+            assert = { _, expected, actual -> assertEquals(expected, actual) },
         )
         //
         assertEquals(
@@ -145,7 +147,7 @@ internal class SyncStoragesTest {
                 ),
             ),
             actual = testSuite.s2.getSyncStates(),
-            assert = ::assertEquals,
+            assert = { _, expected, actual -> assertEquals(expected, actual) },
         )
     }
 
@@ -166,57 +168,110 @@ internal class SyncStoragesTest {
         assertEquals(
             expected = mapOf(
                 s11.id to mockMergeState(
-                    downloaded = setOf(p111.valueInfo.id),
-                    encoded = listOf(Transformers.Strings.map(payload = p211)),
+                    picks = setOf(p111.valueInfo.id),
+                    gives = listOf(Transformers.Strings.map(payload = p211)),
                 ),
                 s12.id to mockMergeState(
-                    downloaded = setOf(p121.valueInfo.id),
-                    encoded = listOf(Transformers.Ints.map(payload = p221)),
+                    picks = setOf(p121.valueInfo.id),
+                    gives = listOf(Transformers.Ints.map(payload = p221)),
                 ),
             ),
             actual = testSuite.s2.getMergeStates(syncStates = testSuite.s1.getSyncStates()),
-            assert = { expected, actual ->
-                assertEquals(expected = expected.downloaded, actual = actual.downloaded, message = "downloaded")
+            assert = { index, expected, actual ->
+                assertEquals(expected = expected.picks, actual = actual.picks, message = "$index] picks")
                 assertEquals(
-                    expected = expected.encoded,
-                    actual = actual.encoded,
+                    expected = expected.gives,
+                    actual = actual.gives,
                     comparator = Comparators.payloads,
-                    assert = { index, e, a ->
+                    assert = { i, e, a ->
                         assertEquals(e.valueInfo, a.valueInfo)
                         assertEquals(e.valueState, a.valueState)
-                        assertTrue(e.value.contentEquals(a.value), "index: $index")
+                        assertTrue(e.value.contentEquals(a.value), "index: $i")
                     },
                 )
-                assertEquals(expected = expected.deleted, actual = actual.deleted, message = "deleted")
+                assertEquals(expected = expected.deleted, actual = actual.deleted, message = "$index] deleted")
             },
         )
         //
         assertEquals(
             expected = mapOf(
                 s21.id to mockMergeState(
-                    downloaded = setOf(p211.valueInfo.id),
-                    encoded = listOf(Transformers.Strings.map(payload = p111)),
+                    picks = setOf(p211.valueInfo.id),
+                    gives = listOf(Transformers.Strings.map(payload = p111)),
                 ),
                 s22.id to mockMergeState(
-                    downloaded = setOf(p221.valueInfo.id),
-                    encoded = listOf(Transformers.Ints.map(payload = p121)),
+                    picks = setOf(p221.valueInfo.id),
+                    gives = listOf(Transformers.Ints.map(payload = p121)),
                 ),
             ),
             actual = testSuite.s1.getMergeStates(syncStates = testSuite.s2.getSyncStates()),
-            assert = { expected, actual ->
-                assertEquals(expected = expected.downloaded, actual = actual.downloaded, message = "downloaded")
+            assert = { index, expected, actual ->
+                assertEquals(expected = expected.picks, actual = actual.picks, message = "$index] picks")
                 assertEquals(
-                    expected = expected.encoded,
-                    actual = actual.encoded,
+                    expected = expected.gives,
+                    actual = actual.gives,
                     comparator = Comparators.payloads,
-                    assert = { index, e, a ->
+                    assert = { i, e, a ->
                         assertEquals(e.valueInfo, a.valueInfo)
                         assertEquals(e.valueState, a.valueState)
-                        assertTrue(e.value.contentEquals(a.value), "index: $index")
+                        assertTrue(e.value.contentEquals(a.value), "index: $i")
                     },
                 )
-                assertEquals(expected = expected.deleted, actual = actual.deleted, message = "deleted")
+                assertEquals(expected = expected.deleted, actual = actual.deleted, message = "$index] deleted")
             },
         )
+    }
+
+    @Test
+    fun mergeTest(@TempDir dir: File) {
+        val testSuite = SyncStoragesTestSuite(dir = dir)
+        //
+        val s11 = testSuite.s1[String::class.java] ?: error("No storage!")
+        val p111 = s11.add(value = "v1")
+        val s12 = testSuite.s1[Int::class.java] ?: error("No storage!")
+        val p121 = s12.add(value = 421)
+        //
+        val s21 = testSuite.s2[String::class.java] ?: error("No storage!")
+        val p211 = s21.add(value = "v2")
+        val s22 = testSuite.s2[Int::class.java] ?: error("No storage!")
+        val p221 = s22.add(value = 422)
+        //
+        val s1SyncStates = testSuite.s1.getSyncStates()
+        val s2MergeStates = testSuite.s2.getMergeStates(syncStates = s1SyncStates)
+        val s1CommitStates = testSuite.s1.merge(mergeStates = s2MergeStates)
+        assertEquals(
+            expected = mapOf(
+                s11.id to mockCommitState(
+                    hash = HexFormat.of().parseHex("ad8a19c4cc9baadc107b4e397cb0fdc3"),
+                    gives = listOf(Transformers.Strings.map(p111)),
+                ),
+                s12.id to mockCommitState(
+                    hash = HexFormat.of().parseHex("6aaa777a09f161ae17bea22665cf314c"),
+                    gives = listOf(Transformers.Ints.map(p121)),
+                ),
+            ),
+            actual = s1CommitStates,
+            assert = { index, expected, actual ->
+                val message = """
+                    index:    $index
+                    expected: ${expected.hash.hex()}
+                    actual:   ${actual.hash.hex()}
+                """.trimIndent()
+                assertTrue(expected.hash.contentEquals(actual.hash), message)
+                assertEquals(
+                    expected = expected.gives,
+                    actual = actual.gives,
+                    comparator = Comparators.payloads,
+                    assert = { i, e, a ->
+                        assertEquals(e.valueInfo, a.valueInfo)
+                        assertEquals(e.valueState, a.valueState)
+                        assertTrue(e.value.contentEquals(a.value), "$index/$i")
+                    },
+                )
+                assertEquals(expected = expected.deleted, actual = actual.deleted, message = "$index] deleted")
+            },
+        )
+        //
+        TODO("SyncStoragesTest:mergeTest($dir)")
     }
 }

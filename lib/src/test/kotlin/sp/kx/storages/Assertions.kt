@@ -27,14 +27,14 @@ internal inline fun <reified T : Comparable<T>> assertEquals(expected: Collectio
 internal fun <K : Comparable<K>, V : Any> assertEquals(
     expected: Map<K, V>,
     actual: Map<K, V>,
-    assert: (expected: V, actual: V) -> Unit,
+    assert: (index: Int, expected: V, actual: V) -> Unit,
 ) {
     assertEquals(expected.size, actual.size)
     val sorted = actual.entries.sortedBy { (it, _) -> it }
     expected.entries.sortedBy { (it, _) -> it }.forEachIndexed { index, (key, value) ->
         val entry = sorted[index]
         assertEquals(key, entry.key)
-        assert(value, entry.value)
+        assert(index, value, entry.value)
     }
 }
 

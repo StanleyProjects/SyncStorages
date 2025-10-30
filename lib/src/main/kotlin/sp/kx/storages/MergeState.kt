@@ -3,7 +3,7 @@ package sp.kx.storages
 import java.util.UUID
 
 class MergeState(
-    val downloaded: Set<UUID>,
-    val encoded: List<Payload<ByteArray>>,
+    val picks: Set<UUID>,
+    val gives: List<Payload<ByteArray>>,
     val deleted: Set<UUID>,
 )
