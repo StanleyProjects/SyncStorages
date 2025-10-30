@@ -29,7 +29,7 @@ internal class RealSyncStorage<T : Any>(
     override val payloads: List<Payload<T>>
         get() {
             return streamer.reader().use { stream ->
-                getPayloads(stream = stream, transformer = transformer)
+                readPayloads(stream = stream, hashes = hashes, transformer = transformer)
             }
         }
 
@@ -52,30 +52,6 @@ internal class RealSyncStorage<T : Any>(
         }
     }
 
-    private fun <U : Any> InputStream.readPayload(transformer: Transformer<U>): Payload<U> {
-        val valueInfo = ValueInfo(
-            id = readUUID(),
-            created = readLong().milliseconds,
-        )
-        val updated = readLong().milliseconds
-        val encoded = readBytes(readInt())
-        return Payload(
-            value = transformer.decode(encoded = encoded),
-            valueInfo = valueInfo,
-            valueState = ValueState(
-                updated = updated,
-                hash = hashes.map(encoded),
-            ),
-        )
-    }
-
-    private fun <U : Any> getPayloads(stream: InputStream, transformer: Transformer<U>): List<Payload<U>> {
-        stream.skip((stream.readInt() * 16).toLong()) // deleted
-        return (0 until stream.readInt()).map { index ->
-            stream.readPayload(transformer = transformer)
-        }
-    }
-
     override fun getSyncState(): SyncState {
         return getSyncState(
             streamer = streamer,
@@ -91,17 +67,6 @@ internal class RealSyncStorage<T : Any>(
         )
     }
 
-    private fun bytesOf(payloads: List<Payload<out Any>>): ByteArray {
-        return ByteArrayOutputStream().use { stream ->
-            payloads.forEach {
-                stream.writeBytes(it.valueInfo.id)
-                stream.writeBytes(it.valueState.updated.inWholeMilliseconds)
-                stream.writeBytes(it.valueState.hash)
-            }
-            stream.toByteArray()
-        }
-    }
-
     override fun merge(mergeState: MergeState): CommitState {
         return merge(
             streamer = streamer,
@@ -112,24 +77,12 @@ internal class RealSyncStorage<T : Any>(
     }
 
     override fun commit(commitState: CommitState): Boolean {
-        val payloads = mutableListOf<Payload<T>>()
-        // todo no changes
-        for (payload in this.payloads) {
-            if (commitState.deleted.contains(payload.valueInfo.id)) continue
-            if (commitState.encoded.any { it.valueInfo.id == payload.valueInfo.id }) continue
-            payloads += payload
-        }
-        for (payload in commitState.encoded) {
-            payloads += payload.map(transformer)
-        }
-        payloads.sortWith(Comparators.payloads)
-        val hash = hashes.map(bytesOf(payloads = payloads))
-        check(hash.contentEquals(commitState.hash)) { "Wrong hash!" }
-        write(
-            payloads = payloads,
-            deleted = deleted + commitState.deleted,
+        return commit(
+            streamer = streamer,
+            hashes = hashes,
+            transformer = transformer,
+            commitState = commitState,
         )
-        return true
     }
 
     override fun add(value: T): Payload<T> {
@@ -276,6 +229,30 @@ internal class RealSyncStorage<T : Any>(
             }
         }
 
+        private fun <U : Any> readPayload(stream: InputStream, hashes: Hashes, transformer: Transformer<U>): Payload<U> {
+            val valueInfo = ValueInfo(
+                id = stream.readUUID(),
+                created = stream.readLong().milliseconds,
+            )
+            val updated = stream.readLong().milliseconds
+            val encoded = stream.readBytes(stream.readInt())
+            return Payload(
+                value = transformer.decode(encoded = encoded),
+                valueInfo = valueInfo,
+                valueState = ValueState(
+                    updated = updated,
+                    hash = hashes.map(encoded),
+                ),
+            )
+        }
+
+        private fun <U : Any> readPayloads(stream: InputStream, hashes: Hashes, transformer: Transformer<U>): List<Payload<U>> {
+            stream.skip((stream.readInt() * 16).toLong()) // deleted
+            return (0 until stream.readInt()).map { index ->
+                readPayload(stream = stream, hashes = hashes, transformer = transformer)
+            }
+        }
+
         private fun readDeleted(stream: InputStream): Set<UUID> {
             return (0 until stream.readInt()).mapTo(HashSet()) { stream.readUUID() }
         }
@@ -369,6 +346,40 @@ internal class RealSyncStorage<T : Any>(
                 encoded = encoded,
                 deleted = deleted,
             )
+        }
+
+        fun <T : Any> commit(
+            streamer: MutableStreamer,
+            hashes: Hashes,
+            transformer: Transformer<T>,
+            commitState: CommitState,
+        ): Boolean {
+            val deleted = mutableSetOf<UUID>()
+            val payloads = mutableListOf<Payload<T>>()
+            // todo no changes
+            streamer.reader().use { stream ->
+                deleted += readDeleted(stream = stream)
+                for (payload in readPayloads(stream = stream, hashes = hashes, transformer = transformer)) {
+                    if (commitState.deleted.contains(payload.valueInfo.id)) continue
+                    if (commitState.encoded.any { it.valueInfo.id == payload.valueInfo.id }) continue
+                    payloads += payload
+                }
+                for (payload in commitState.encoded) {
+                    payloads += payload.map(transformer)
+                }
+            }
+            payloads.sortWith(Comparators.payloads)
+            val hash = hashes.map(bytesOf(payloads = payloads))
+            check(hash.contentEquals(commitState.hash)) { "Wrong hash!" }
+            streamer.writer().use { stream ->
+                write(
+                    stream = stream,
+                    deleted = deleted + commitState.deleted,
+                    payloads = payloads,
+                    transformer = transformer,
+                )
+            }
+            return true
         }
     }
 }

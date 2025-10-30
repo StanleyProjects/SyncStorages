@@ -47,7 +47,8 @@ class RealSyncStorages private constructor(
 
     override fun <T : Any> get(type: Class<T>): MutableStorage<T>? {
         for ((id, it) in transformers) {
-            val transformer = it.getTransformer(type = type) ?: continue
+            if (!it.type.isAssignableFrom(type)) continue
+            val transformer = it.delegate as Transformer<T>
             val src = dir.resolve(id.toString())
             if (src.length() == 0L) {
                 src.outputStream().use { stream ->
@@ -105,5 +106,21 @@ class RealSyncStorages private constructor(
             )
         }
         return commitStates
+    }
+
+    override fun commit(commitStates: Map<UUID, CommitState>): Set<UUID> {
+        val result = mutableSetOf<UUID>()
+        for ((id, commitState) in commitStates) {
+            val transformer = transformers[id]?.delegate ?: error("No storage by ID: \"$id\"!")
+            val src = dir.resolve(id.toString())
+            val commited = RealSyncStorage.commit(
+                streamer = MutableFileStreamer(src = src),
+                hashes = hashes,
+                transformer = transformer,
+                commitState = commitState,
+            )
+            if (commited) result += id
+        }
+        return result
     }
 }
