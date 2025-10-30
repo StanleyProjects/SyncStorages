@@ -22,8 +22,8 @@ internal class SyncStoragesTestSuite {
         this.times = times
         this.ids = ids
         s1 = RealSyncStorages.Builder()
-            .add(id = ids.random(), type = String::class.java, transformer = StringTransformer)
-            .add(id = ids.random(), type = Int::class.java, transformer = IntTransformer)
+            .add(id = ids.random(), type = String::class.java, transformer = Transformers.Strings)
+            .add(id = ids.random(), type = Int::class.java, transformer = Transformers.Ints)
             .build(
                 dir = dir,
                 hashes = hashes,
@@ -33,13 +33,17 @@ internal class SyncStoragesTestSuite {
         val s11 = s1[String::class.java] ?: error("No storage!")
         val s12 = s1[Int::class.java] ?: error("No storage!")
         s2 = RealSyncStorages.Builder()
-            .add(id = s11.id, type = String::class.java, transformer = StringTransformer)
-            .add(id = s12.id, type = Int::class.java, transformer = IntTransformer)
+            .add(id = s11.id, type = String::class.java, transformer = Transformers.Strings)
+            .add(id = s12.id, type = Int::class.java, transformer = Transformers.Ints)
             .build(
                 dir = dir,
                 hashes = hashes,
                 times = times,
                 ids = ids,
             )
+    }
+
+    fun hashOf(value: String): ByteArray {
+        return hashes.map(Transformers.Strings.encode(value))
     }
 }

@@ -5,82 +5,78 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
-import sp.kx.hashes.Hashes
-import java.util.HexFormat
-import java.util.UUID
 import java.io.File
+import java.util.UUID
+import kotlin.time.Duration.Companion.milliseconds
 
 internal class MutableStorageTest {
     @Test
     fun getTest(@TempDir dir: File) {
-        val storage = mockMutableStorage(transformer = StringTransformer, dir = dir)
-        assertNull(storage[UUID(0, 0)])
+        val testSuite = SyncStoragesTestSuite(dir = dir)
+        val s11 = testSuite.s1[String::class.java] ?: error("No storage!")
+        assertNull(s11[UUID(0, 0)])
+        val value = "v1"
+        val payload = s11.add(value = value)
+        val actual = s11[payload.valueInfo.id]
+        checkNotNull(actual)
+        assertEquals(expected = payload, actual = actual)
     }
 
     @Test
     fun addTest(@TempDir dir: File) {
-        val storage = mockMutableStorage(
-            transformer = StringTransformer,
-            dir = dir,
-            hashes = Hashes.MD5,
+        val testSuite = SyncStoragesTestSuite(dir = dir)
+        val s11 = testSuite.s1[String::class.java] ?: error("No storage!")
+        val value = "v1"
+        val payload = s11.add(value = value)
+        assertEquals(
+            expected = Payload(
+                value = value,
+                valueInfo = ValueInfo(
+                    id = UUID(0, 2),
+                    created = 0.milliseconds,
+                ),
+                valueState = ValueState(
+                    updated = 0.milliseconds,
+                    hash = testSuite.hashOf(value = value),
+                ),
+            ),
+            actual = payload,
         )
-        val value = "foo bar baz"
-        val payload = storage.add(value = value)
-        assertEquals(value, payload.value)
-        val expected = HexFormat.of().parseHex("ab07acbb1e496801937adfa772424bf7")
-        assertTrue(expected.contentEquals(payload.valueState.hash))
-        //
-        val actual = storage[payload.valueInfo.id]
-        checkNotNull(actual)
-        assertEquals(payload.value, actual.value)
-        assertEquals(payload.valueInfo, actual.valueInfo)
-        assertEquals(payload.valueState.updated, actual.valueState.updated)
-        assertTrue(payload.valueState.hash.contentEquals(actual.valueState.hash))
     }
 
     @Test
     fun deleteTest(@TempDir dir: File) {
-        val storage = mockMutableStorage(
-            transformer = StringTransformer,
-            dir = dir,
-            hashes = Hashes.MD5,
-        )
-        val value = "foo bar baz"
-        val payload = storage.add(value = value)
+        val testSuite = SyncStoragesTestSuite(dir = dir)
+        val s11 = testSuite.s1[String::class.java] ?: error("No storage!")
+        val value = "v1"
+        val payload = s11.add(value = value)
         assertEquals(value, payload.value)
-        val expected = HexFormat.of().parseHex("ab07acbb1e496801937adfa772424bf7")
-        assertTrue(expected.contentEquals(payload.valueState.hash))
+        assertTrue(testSuite.hashOf(value = value).contentEquals(payload.valueState.hash))
         //
-        val actual = storage[payload.valueInfo.id]
+        val actual = s11[payload.valueInfo.id]
         checkNotNull(actual)
         assertEquals(payload.value, actual.value)
         assertEquals(payload.valueInfo, actual.valueInfo)
         assertEquals(payload.valueState.updated, actual.valueState.updated)
         assertTrue(payload.valueState.hash.contentEquals(actual.valueState.hash))
         //
-        assertTrue(storage.delete(payload.valueInfo.id))
-        assertNull(storage[payload.valueInfo.id])
+        assertTrue(s11.delete(payload.valueInfo.id))
+        assertNull(s11[payload.valueInfo.id])
     }
 
     @Test
     fun updateTest(@TempDir dir: File) {
-        val storage = mockMutableStorage(
-            transformer = StringTransformer,
-            dir = dir,
-            hashes = Hashes.MD5,
-        )
-        val payload = storage.add(value = "foo bar baz")
+        val testSuite = SyncStoragesTestSuite(dir = dir)
+        val s11 = testSuite.s1[String::class.java] ?: error("No storage!")
+        val payload = s11.add(value = "v1")
         //
-        val value = "qux"
-        val valueState = storage.update(id = payload.valueInfo.id, value = value)
+        val valueState = s11.update(id = payload.valueInfo.id, value = "v2")
         checkNotNull(valueState)
-        val expected = HexFormat.of().parseHex("d85b1213473c2fd7c2045020a6b9c62b")
-        assertTrue(expected.contentEquals(valueState.hash))
-        val actual = storage[payload.valueInfo.id]
+        assertTrue(testSuite.hashOf(value = "v2").contentEquals(valueState.hash))
+        val actual = s11[payload.valueInfo.id]
         checkNotNull(actual)
-        assertEquals(value, actual.value)
+        assertEquals("v2", actual.value)
         assertEquals(payload.valueInfo, actual.valueInfo)
-        assertEquals(valueState.updated, actual.valueState.updated)
-        assertTrue(valueState.hash.contentEquals(actual.valueState.hash))
+        assertEquals(valueState, actual.valueState)
     }
 }

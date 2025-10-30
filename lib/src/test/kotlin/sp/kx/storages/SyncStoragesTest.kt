@@ -4,7 +4,6 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
-import sp.kx.bytes.hex
 import java.io.File
 import java.util.HexFormat
 import kotlin.time.Duration.Companion.milliseconds
