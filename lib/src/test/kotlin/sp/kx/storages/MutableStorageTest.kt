@@ -4,21 +4,24 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.io.TempDir
 import sp.kx.hashes.Hashes
 import java.util.HexFormat
 import java.util.UUID
+import java.io.File
 
 internal class MutableStorageTest {
     @Test
-    fun getTest() {
-        val storage = mockSyncStorage(transformer = StringTransformer)
+    fun getTest(@TempDir dir: File) {
+        val storage = mockMutableStorage(transformer = StringTransformer, dir = dir)
         assertNull(storage[UUID(0, 0)])
     }
 
     @Test
-    fun addTest() {
-        val storage = mockSyncStorage(
+    fun addTest(@TempDir dir: File) {
+        val storage = mockMutableStorage(
             transformer = StringTransformer,
+            dir = dir,
             hashes = Hashes.MD5,
         )
         val value = "foo bar baz"
@@ -36,9 +39,10 @@ internal class MutableStorageTest {
     }
 
     @Test
-    fun deleteTest() {
-        val storage = mockSyncStorage(
+    fun deleteTest(@TempDir dir: File) {
+        val storage = mockMutableStorage(
             transformer = StringTransformer,
+            dir = dir,
             hashes = Hashes.MD5,
         )
         val value = "foo bar baz"
@@ -59,9 +63,10 @@ internal class MutableStorageTest {
     }
 
     @Test
-    fun updateTest() {
-        val storage = mockSyncStorage(
+    fun updateTest(@TempDir dir: File) {
+        val storage = mockMutableStorage(
             transformer = StringTransformer,
+            dir = dir,
             hashes = Hashes.MD5,
         )
         val payload = storage.add(value = "foo bar baz")

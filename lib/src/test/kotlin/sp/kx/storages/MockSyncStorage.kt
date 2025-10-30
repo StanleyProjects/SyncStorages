@@ -9,6 +9,7 @@ import sp.kx.times.Times
 import java.io.File
 import java.util.UUID
 
+@Deprecated(message = "mockMutableStorage")
 fun <T : Any> mockSyncStorage(
     id: UUID = UUID(0, 0),
     streamer: MutableStreamer = MutableFileStreamer(src = File.createTempFile("foo", "bar")),
