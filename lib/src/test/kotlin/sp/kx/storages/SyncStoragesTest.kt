@@ -10,39 +10,6 @@ import kotlin.time.Duration.Companion.milliseconds
 
 internal class SyncStoragesTest {
     @Test
-    fun getSyncStatesTest(@TempDir dir: File) {
-        val testSuite = SyncStoragesTestSuite(dir = dir)
-        //
-        val s11 = testSuite.s1[String::class.java] ?: error("No storage!")
-        val p111 = s11.add(value = "v1")
-        val s12 = testSuite.s1[Int::class.java] ?: error("No storage!")
-        val p121 = s12.add(value = 421)
-        //
-        assertEquals(
-            expected = mapOf(
-                s11.id to mockSyncState(
-                    valueStates = mapOf(
-                        p111.valueInfo.id to mockValueState(
-                            hash = testSuite.hashOf(value = "v1"),
-                            updated = 0.milliseconds,
-                        ),
-                    ),
-                ),
-                s12.id to mockSyncState(
-                    valueStates = mapOf(
-                        p121.valueInfo.id to mockValueState(
-                            hash = testSuite.hashOf(value = 421),
-                            updated = 1.milliseconds,
-                        ),
-                    ),
-                ),
-            ),
-            actual = testSuite.s1.getSyncStates(),
-            assert = ::assertEquals,
-        )
-    }
-
-    @Test
     fun addTest(@TempDir dir: File) {
         val testSuite = SyncStoragesTestSuite(dir = dir)
         //
@@ -118,6 +85,67 @@ internal class SyncStoragesTest {
                 ),
             ),
             actual = s22.payloads.single(),
+        )
+    }
+
+    @Test
+    fun getSyncStatesTest(@TempDir dir: File) {
+        val testSuite = SyncStoragesTestSuite(dir = dir)
+        //
+        val s11 = testSuite.s1[String::class.java] ?: error("No storage!")
+        val p111 = s11.add(value = "v1")
+        val s12 = testSuite.s1[Int::class.java] ?: error("No storage!")
+        val p121 = s12.add(value = 421)
+        //
+        val s21 = testSuite.s2[String::class.java] ?: error("No storage!")
+        val p211 = s21.add(value = "v2")
+        val s22 = testSuite.s2[Int::class.java] ?: error("No storage!")
+        val p221 = s22.add(value = 422)
+        //
+        assertEquals(
+            expected = mapOf(
+                s11.id to mockSyncState(
+                    valueStates = mapOf(
+                        p111.valueInfo.id to mockValueState(
+                            hash = testSuite.hashOf(value = "v1"),
+                            updated = 0.milliseconds,
+                        ),
+                    ),
+                ),
+                s12.id to mockSyncState(
+                    valueStates = mapOf(
+                        p121.valueInfo.id to mockValueState(
+                            hash = testSuite.hashOf(value = 421),
+                            updated = 1.milliseconds,
+                        ),
+                    ),
+                ),
+            ),
+            actual = testSuite.s1.getSyncStates(),
+            assert = ::assertEquals,
+        )
+        //
+        assertEquals(
+            expected = mapOf(
+                s21.id to mockSyncState(
+                    valueStates = mapOf(
+                        p211.valueInfo.id to mockValueState(
+                            hash = testSuite.hashOf(value = "v2"),
+                            updated = 2.milliseconds,
+                        ),
+                    ),
+                ),
+                s22.id to mockSyncState(
+                    valueStates = mapOf(
+                        p221.valueInfo.id to mockValueState(
+                            hash = testSuite.hashOf(value = 422),
+                            updated = 3.milliseconds,
+                        ),
+                    ),
+                ),
+            ),
+            actual = testSuite.s2.getSyncStates(),
+            assert = ::assertEquals,
         )
     }
 
