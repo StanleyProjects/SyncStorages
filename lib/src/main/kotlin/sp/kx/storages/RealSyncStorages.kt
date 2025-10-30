@@ -6,7 +6,6 @@ import sp.kx.hashes.Hashes
 import sp.kx.ids.Ids
 import sp.kx.streamers.FileStreamer
 import sp.kx.streamers.MutableFileStreamer
-import sp.kx.streamers.MutableStreamer
 import sp.kx.times.Times
 import java.io.File
 import java.util.UUID
@@ -56,7 +55,7 @@ class RealSyncStorages private constructor(
                     stream.writeBytes(0) // payloads
                 }
             }
-            return RealSyncStorage(
+            return SyncStorage(
                 id = id,
                 streamer = MutableFileStreamer(src = src),
                 transformer = transformer,
@@ -72,7 +71,7 @@ class RealSyncStorages private constructor(
         val syncStates = mutableMapOf<UUID, SyncState>()
         for ((id, _) in transformers) {
             val src = dir.resolve(id.toString())
-            syncStates[id] = RealSyncStorage.getSyncState(
+            syncStates[id] = SyncStorage.getSyncState(
                 streamer = FileStreamer(delegate = src),
                 hashes = hashes,
             )
@@ -85,7 +84,7 @@ class RealSyncStorages private constructor(
         for ((id, syncState) in syncStates) {
             if (!transformers.containsKey(id)) error("No storage by ID: \"$id\"!")
             val src = dir.resolve(id.toString())
-            mergeStates[id] = RealSyncStorage.getMergeState(
+            mergeStates[id] = SyncStorage.getMergeState(
                 streamer = FileStreamer(delegate = src),
                 hashes = hashes,
                 syncState = syncState,
@@ -99,7 +98,7 @@ class RealSyncStorages private constructor(
         for ((id, mergeState) in mergeStates) {
             val transformer = transformers[id]?.delegate ?: error("No storage by ID: \"$id\"!")
             val src = dir.resolve(id.toString())
-            commitStates[id] = RealSyncStorage.merge(
+            commitStates[id] = SyncStorage.merge(
                 streamer = MutableFileStreamer(src = src),
                 hashes = hashes,
                 transformer = transformer,
@@ -114,7 +113,7 @@ class RealSyncStorages private constructor(
         for ((id, commitState) in commitStates) {
             val transformer = transformers[id]?.delegate ?: error("No storage by ID: \"$id\"!")
             val src = dir.resolve(id.toString())
-            val commited = RealSyncStorage.commit(
+            val commited = SyncStorage.commit(
                 streamer = MutableFileStreamer(src = src),
                 hashes = hashes,
                 transformer = transformer,

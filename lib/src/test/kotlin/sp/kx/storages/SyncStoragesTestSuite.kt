@@ -25,7 +25,7 @@ internal class SyncStoragesTestSuite {
             .add(id = ids.random(), type = String::class.java, transformer = Transformers.Strings)
             .add(id = ids.random(), type = Int::class.java, transformer = Transformers.Ints)
             .build(
-                dir = dir,
+                dir = dir.resolve("s1").also { check(it.mkdir()) },
                 hashes = hashes,
                 times = times,
                 ids = ids,
@@ -36,7 +36,7 @@ internal class SyncStoragesTestSuite {
             .add(id = s11.id, type = String::class.java, transformer = Transformers.Strings)
             .add(id = s12.id, type = Int::class.java, transformer = Transformers.Ints)
             .build(
-                dir = dir,
+                dir = dir.resolve("s2").also { check(it.mkdir()) },
                 hashes = hashes,
                 times = times,
                 ids = ids,
@@ -45,5 +45,9 @@ internal class SyncStoragesTestSuite {
 
     fun hashOf(value: String): ByteArray {
         return hashes.map(Transformers.Strings.encode(value))
+    }
+
+    fun hashOf(value: Int): ByteArray {
+        return hashes.map(Transformers.Ints.encode(value))
     }
 }
