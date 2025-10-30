@@ -5,7 +5,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 internal fun <T : Any> assertEquals(
     expected: Collection<T>,
     actual: Collection<T>,
-    comparator: Comparator<T>,
+    comparator: Comparator<in T>,
     assert: (index: Int, expected: T, actual: T) -> Unit,
 ) {
     assertEquals(expected.size, actual.size)

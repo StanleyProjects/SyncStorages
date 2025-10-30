@@ -29,6 +29,7 @@ internal class RealSyncStorage<T : Any>(
     override val payloads: List<Payload<T>>
         get() {
             return streamer.reader().use { stream ->
+                stream.skip((stream.readInt() * 16).toLong()) // deleted
                 readPayloads(stream = stream, hashes = hashes, transformer = transformer)
             }
         }
@@ -223,7 +224,6 @@ internal class RealSyncStorage<T : Any>(
         }
 
         private fun readPayloads(stream: InputStream, hashes: Hashes): List<Payload<ByteArray>> {
-            stream.skip((stream.readInt() * 16).toLong()) // deleted
             return (0 until stream.readInt()).map { index ->
                 readPayload(stream = stream, hashes = hashes)
             }
@@ -247,7 +247,6 @@ internal class RealSyncStorage<T : Any>(
         }
 
         private fun <U : Any> readPayloads(stream: InputStream, hashes: Hashes, transformer: Transformer<U>): List<Payload<U>> {
-            stream.skip((stream.readInt() * 16).toLong()) // deleted
             return (0 until stream.readInt()).map { index ->
                 readPayload(stream = stream, hashes = hashes, transformer = transformer)
             }
@@ -259,7 +258,7 @@ internal class RealSyncStorage<T : Any>(
 
         fun getSyncState(streamer: Streamer, hashes: Hashes): SyncState {
             return streamer.reader().use { stream ->
-                val deleted: Set<UUID> = (0 until stream.readInt()).mapTo(HashSet()) { stream.readUUID() }
+                val deleted = readDeleted(stream = stream)
                 val valueStates = (0 until stream.readInt()).associate { index ->
                     val id = stream.readUUID()
                     stream.skip(8) // created
@@ -282,33 +281,35 @@ internal class RealSyncStorage<T : Any>(
             hashes: Hashes,
             syncState: SyncState,
         ): MergeState {
-            return streamer.reader().use { stream ->
-                val downloaded = HashSet<UUID>()
-                val encoded = mutableListOf<Payload<ByteArray>>()
-                val deleted = readDeleted(stream = stream)
-                val payloads = readPayloads(stream = stream, hashes = hashes)
-                for (payload in payloads) {
-                    if (syncState.valueStates.containsKey(payload.valueInfo.id)) continue
-                    if (syncState.deleted.contains(payload.valueInfo.id)) continue
+            val deleted: Set<UUID>
+            val locals: List<Payload<ByteArray>>
+            streamer.reader().use { stream ->
+                deleted = readDeleted(stream = stream)
+                locals = readPayloads(stream = stream, hashes = hashes)
+            }
+            val downloaded = HashSet<UUID>()
+            val encoded = mutableListOf<Payload<ByteArray>>()
+            for (payload in locals) {
+                if (syncState.valueStates.containsKey(payload.valueInfo.id)) continue
+                if (syncState.deleted.contains(payload.valueInfo.id)) continue
+                encoded.add(payload)
+            }
+            for ((id, valueState) in syncState.valueStates) {
+                val payload = locals.firstOrNull { it.valueInfo.id == id }
+                if (payload == null) {
+                    if (deleted.contains(id)) continue
+                    downloaded.add(id)
+                } else if (valueState.updated > payload.valueState.updated) {
+                    downloaded.add(id)
+                } else if (!valueState.hash.contentEquals(payload.valueState.hash)) {
                     encoded.add(payload)
                 }
-                for ((id, valueState) in syncState.valueStates) {
-                    val payload = payloads.firstOrNull { it.valueInfo.id == id }
-                    if (payload == null) {
-                        if (deleted.contains(id)) continue
-                        downloaded.add(id)
-                    } else if (valueState.updated > payload.valueState.updated) {
-                        downloaded.add(id)
-                    } else if (!valueState.hash.contentEquals(payload.valueState.hash)) {
-                        encoded.add(payload)
-                    }
-                }
-                MergeState(
-                    downloaded = downloaded,
-                    encoded = encoded,
-                    deleted = deleted,
-                )
             }
+            return MergeState(
+                downloaded = downloaded,
+                encoded = encoded,
+                deleted = deleted,
+            )
         }
 
         fun <T : Any> merge(
@@ -318,25 +319,28 @@ internal class RealSyncStorage<T : Any>(
             mergeState: MergeState,
         ): CommitState {
             val deleted = mutableSetOf<UUID>()
-            val payloads = mutableListOf<Payload<T>>()
-            val encoded = mutableListOf<Payload<ByteArray>>()
+            val locals: List<Payload<ByteArray>>
             streamer.reader().use { stream ->
                 deleted += readDeleted(stream = stream)
-                for (payload in readPayloads(stream = stream, hashes = hashes)) {
-                    if (mergeState.deleted.contains(payload.valueInfo.id)) continue
-                    if (mergeState.encoded.any { it.valueInfo.id == payload.valueInfo.id }) continue
-                    if (mergeState.downloaded.contains(payload.valueInfo.id)) encoded.add(payload)
-                    payloads += payload.map(transformer)
-                }
-                for (payload in mergeState.encoded) {
-                    payloads += payload.map(transformer)
-                }
+                locals = readPayloads(stream = stream, hashes = hashes)
+            }
+            val payloads = mutableListOf<Payload<T>>()
+            val encoded = mutableListOf<Payload<ByteArray>>()
+            for (payload in locals) {
+                if (mergeState.deleted.contains(payload.valueInfo.id)) continue
+                if (mergeState.encoded.any { it.valueInfo.id == payload.valueInfo.id }) continue
+                if (mergeState.downloaded.contains(payload.valueInfo.id)) encoded.add(payload)
+                payloads += payload.map(transformer)
+            }
+            for (payload in mergeState.encoded) {
+                payloads += payload.map(transformer)
             }
             payloads.sortWith(Comparators.payloads)
+            deleted += mergeState.deleted
             streamer.writer().use { stream ->
                 write(
                     stream = stream,
-                    deleted = deleted + mergeState.deleted,
+                    deleted = deleted,
                     payloads = payloads,
                     transformer = transformer,
                 )

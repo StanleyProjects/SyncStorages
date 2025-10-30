@@ -83,6 +83,7 @@ class RealSyncStorages private constructor(
     override fun getMergeStates(syncStates: Map<UUID, SyncState>): Map<UUID, MergeState> {
         val mergeStates = mutableMapOf<UUID, MergeState>()
         for ((id, syncState) in syncStates) {
+            if (!transformers.containsKey(id)) error("No storage by ID: \"$id\"!")
             val src = dir.resolve(id.toString())
             mergeStates[id] = RealSyncStorage.getMergeState(
                 streamer = FileStreamer(delegate = src),
