@@ -124,7 +124,7 @@ internal class SyncStoragesTest {
                 ),
             ),
             actual = testSuite.s1.getSyncStates(),
-            assert = { _, expected, actual -> assertEquals(expected, actual) },
+            assert = { _, expected, actual -> expected.assertEquals(actual = actual) },
         )
         //
         assertEquals(
@@ -147,7 +147,7 @@ internal class SyncStoragesTest {
                 ),
             ),
             actual = testSuite.s2.getSyncStates(),
-            assert = { _, expected, actual -> assertEquals(expected, actual) },
+            assert = { _, expected, actual -> expected.assertEquals(actual = actual) },
         )
     }
 

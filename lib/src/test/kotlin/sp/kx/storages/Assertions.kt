@@ -2,6 +2,7 @@ package sp.kx.storages
 
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
+import sp.kx.bytes.hex
 
 internal inline fun <reified T : Any> assertEquals(
     expected: Collection<T>,
@@ -49,4 +50,26 @@ internal fun <T : Comparable<T>> assertEquals(expected: Payload<out T>, actual: 
     assertEquals(expected.value, actual.value)
     assertEquals(expected.valueInfo, actual.valueInfo)
     assertEquals(expected.valueState, actual.valueState)
+}
+
+internal fun ValueState.assertEquals(actual: ValueState) {
+    assertEquals(updated, actual.updated)
+    val message = """
+        expected: ${hash.hex()}
+        actual:   ${hash.hex()}
+    """.trimIndent()
+    assertTrue(hash.contentEquals(actual.hash), message)
+    assertEquals(this, actual)
+}
+
+internal fun SyncState.assertEquals(actual: SyncState) {
+    assertEquals(expected = deleted, actual = actual.deleted, message = "deleted")
+    assertEquals(
+        expected = valueStates,
+        actual = actual.valueStates,
+        assert = { _, expected, actual ->
+            expected.assertEquals(actual = actual)
+        },
+    )
+    assertEquals(this, actual)
 }
