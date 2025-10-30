@@ -59,7 +59,7 @@ internal fun ValueState.assertEquals(actual: ValueState) {
         actual:   ${hash.hex()}
     """.trimIndent()
     assertTrue(hash.contentEquals(actual.hash), message)
-    assertEquals(this, actual)
+    assertEquals(this, actual, message)
 }
 
 internal fun SyncState.assertEquals(actual: SyncState) {
@@ -67,9 +67,7 @@ internal fun SyncState.assertEquals(actual: SyncState) {
     assertEquals(
         expected = valueStates,
         actual = actual.valueStates,
-        assert = { _, expected, actual ->
-            expected.assertEquals(actual = actual)
-        },
+        assert = { _, e, a -> e.assertEquals(actual = a) },
     )
     assertEquals(this, actual)
 }
