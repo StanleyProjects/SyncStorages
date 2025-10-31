@@ -177,20 +177,7 @@ internal class SyncStoragesTest {
                 ),
             ),
             actual = testSuite.s2.getMergeStates(syncStates = testSuite.s1.getSyncStates()),
-            assert = { index, expected, actual ->
-                assertEquals(expected = expected.picks, actual = actual.picks, message = "$index] picks")
-                assertEquals(
-                    expected = expected.gives,
-                    actual = actual.gives,
-                    comparator = Comparators.payloads,
-                    assert = { i, e, a ->
-                        assertEquals(e.valueInfo, a.valueInfo)
-                        assertEquals(e.valueState, a.valueState)
-                        assertTrue(e.value.contentEquals(a.value), "index: $i")
-                    },
-                )
-                assertEquals(expected = expected.deleted, actual = actual.deleted, message = "$index] deleted")
-            },
+            assert = { _, expected, actual -> expected.assertEquals(actual = actual) },
         )
         //
         assertEquals(
@@ -205,20 +192,7 @@ internal class SyncStoragesTest {
                 ),
             ),
             actual = testSuite.s1.getMergeStates(syncStates = testSuite.s2.getSyncStates()),
-            assert = { index, expected, actual ->
-                assertEquals(expected = expected.picks, actual = actual.picks, message = "$index] picks")
-                assertEquals(
-                    expected = expected.gives,
-                    actual = actual.gives,
-                    comparator = Comparators.payloads,
-                    assert = { i, e, a ->
-                        assertEquals(e.valueInfo, a.valueInfo)
-                        assertEquals(e.valueState, a.valueState)
-                        assertTrue(e.value.contentEquals(a.value), "index: $i")
-                    },
-                )
-                assertEquals(expected = expected.deleted, actual = actual.deleted, message = "$index] deleted")
-            },
+            assert = { _, expected, actual -> expected.assertEquals(actual = actual) },
         )
     }
 
@@ -236,9 +210,7 @@ internal class SyncStoragesTest {
         val s22 = testSuite.s2[Int::class.java] ?: error("No storage!")
         val p221 = s22.add(value = 422)
         //
-        val s1SyncStates = testSuite.s1.getSyncStates()
-        val s2MergeStates = testSuite.s2.getMergeStates(syncStates = s1SyncStates)
-        val s1CommitStates = testSuite.s1.merge(mergeStates = s2MergeStates)
+        val s2MergeStates = testSuite.s2.getMergeStates(testSuite.s1.getSyncStates())
         assertEquals(
             expected = mapOf(
                 s11.id to mockCommitState(
@@ -250,7 +222,7 @@ internal class SyncStoragesTest {
                     gives = listOf(Transformers.Ints.map(p121)),
                 ),
             ),
-            actual = s1CommitStates,
+            actual = testSuite.s1.merge(mergeStates = s2MergeStates),
             assert = { index, expected, actual ->
                 val message = """
                     index:    $index
@@ -272,6 +244,38 @@ internal class SyncStoragesTest {
             },
         )
         //
-        TODO("SyncStoragesTest:mergeTest($dir)")
+        val s1MergeStates = testSuite.s1.getMergeStates(testSuite.s2.getSyncStates())
+        assertEquals(
+            expected = mapOf(
+                s21.id to mockCommitState(
+                    hash = HexFormat.of().parseHex("ad8a19c4cc9baadc107b4e397cb0fdc3"),
+                    gives = listOf(Transformers.Strings.map(p111)),
+                ),
+                s22.id to mockCommitState(
+                    hash = HexFormat.of().parseHex("6aaa777a09f161ae17bea22665cf314c"),
+                    gives = listOf(Transformers.Ints.map(p121)),
+                ),
+            ),
+            actual = testSuite.s2.merge(mergeStates = s1MergeStates),
+            assert = { index, expected, actual ->
+                val message = """
+                    index:    $index
+                    expected: ${expected.hash.hex()}
+                    actual:   ${actual.hash.hex()}
+                """.trimIndent()
+                assertTrue(expected.hash.contentEquals(actual.hash), message)
+                assertEquals(
+                    expected = expected.gives,
+                    actual = actual.gives,
+                    comparator = Comparators.payloads,
+                    assert = { i, e, a ->
+                        assertEquals(e.valueInfo, a.valueInfo)
+                        assertEquals(e.valueState, a.valueState)
+                        assertTrue(e.value.contentEquals(a.value), "$index/$i")
+                    },
+                )
+                assertEquals(expected = expected.deleted, actual = actual.deleted, message = "$index] deleted")
+            },
+        )
     }
 }

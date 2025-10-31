@@ -39,11 +39,11 @@ internal fun <K : Comparable<K>, V : Any> assertEquals(
     }
 }
 
-internal fun assertEquals(expected: Payload<ByteArray>, actual: Payload<ByteArray>, message: String) {
-    assertEquals(expected.value.size, actual.value.size, message)
-    assertTrue(expected.value.contentEquals(actual.value), message)
-    assertEquals(expected.valueInfo, actual.valueInfo, message)
-    assertEquals(expected.valueState, actual.valueState, message)
+internal fun Payload<ByteArray>.assertEquals(actual: Payload<ByteArray>, message: String) {
+    assertEquals(value.size, actual.value.size, message)
+    assertTrue(value.contentEquals(actual.value), message)
+    assertEquals(valueInfo, actual.valueInfo, message)
+    valueState.assertEquals(actual = actual.valueState)
 }
 
 internal fun <T : Comparable<T>> assertEquals(expected: Payload<out T>, actual: Payload<out T>) {
@@ -63,11 +63,23 @@ internal fun ValueState.assertEquals(actual: ValueState) {
 }
 
 internal fun SyncState.assertEquals(actual: SyncState) {
-    assertEquals(expected = deleted, actual = actual.deleted, message = "deleted")
+    assertEquals(expected = deleted, actual = actual.deleted, message = "SyncState:deleted")
     assertEquals(
         expected = valueStates,
         actual = actual.valueStates,
         assert = { _, e, a -> e.assertEquals(actual = a) },
     )
+    assertEquals(this, actual)
+}
+
+internal fun MergeState.assertEquals(actual: MergeState) {
+    assertEquals(expected = picks, actual = actual.picks, message = "MergeState:picks")
+    assertEquals(
+        expected = gives,
+        actual = actual.gives,
+        comparator = Comparators.payloads,
+        assert = { index, e, a -> e.assertEquals(actual = a, message = "MergeState:gives[$index]") },
+    )
+    assertEquals(expected = deleted, actual = actual.deleted, message = "MergeState:deleted")
     assertEquals(this, actual)
 }
