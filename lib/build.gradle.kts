@@ -75,7 +75,7 @@ fun Test.getExecutionData(): File {
         .asFile("$name.exec")
 }
 
-val taskUnitTest = tasks.register<Test>("checkUnitTest") {
+val taskUnitTest by tasks.register<Test>("checkUnitTest") {
     useJUnitPlatform()
     testClassesDirs = sourceSets.test.get().output.classesDirs
     classpath = sourceSets.test.get().runtimeClasspath
@@ -83,11 +83,11 @@ val taskUnitTest = tasks.register<Test>("checkUnitTest") {
     doLast {
         getExecutionData().eff()
     }
-}.get()
+}
 
 jacoco.toolVersion = Version.jacoco
 
-val taskCoverageReport = tasks.register<JacocoReport>("assembleCoverageReport") {
+val taskCoverageReport by tasks.register<JacocoReport>("assembleCoverageReport") {
     dependsOn(taskUnitTest)
     reports {
         csv.required = false
@@ -103,7 +103,7 @@ val taskCoverageReport = tasks.register<JacocoReport>("assembleCoverageReport") 
             .eff("index.html")
         println("Coverage report: ${report.absolutePath}")
     }
-}.get()
+}
 
 tasks.register<JacocoCoverageVerification>("checkCoverage") {
     dependsOn(taskCoverageReport)
