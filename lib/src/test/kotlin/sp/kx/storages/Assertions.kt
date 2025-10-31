@@ -42,14 +42,20 @@ internal fun <K : Comparable<K>, V : Any> assertEquals(
 internal fun Payload<ByteArray>.assertEquals(actual: Payload<ByteArray>, message: String) {
     assertEquals(value.size, actual.value.size, message)
     assertTrue(value.contentEquals(actual.value), message)
-    assertEquals(valueInfo, actual.valueInfo, message)
+    valueInfo.assertEquals(actual = actual.valueInfo)
     valueState.assertEquals(actual = actual.valueState)
 }
 
 internal fun <T : Comparable<T>> assertEquals(expected: Payload<out T>, actual: Payload<out T>) {
     assertEquals(expected.value, actual.value)
-    assertEquals(expected.valueInfo, actual.valueInfo)
-    assertEquals(expected.valueState, actual.valueState)
+    expected.valueInfo.assertEquals(actual = actual.valueInfo)
+    expected.valueState.assertEquals(actual = actual.valueState)
+}
+
+internal fun ValueInfo.assertEquals(actual: ValueInfo) {
+    assertEquals(id, actual.id)
+    assertEquals(created, actual.created)
+    assertEquals(this, actual)
 }
 
 internal fun ValueState.assertEquals(actual: ValueState) {

@@ -1,7 +1,6 @@
 package sp.kx.storages
 
 import java.util.Objects
-import java.util.TreeSet
 import java.util.UUID
 
 class MergeState(
@@ -17,22 +16,21 @@ class MergeState(
         return Objects.hash(
             deleted.fold(1) { acc, it -> 31 * acc + it.hashCode() },
             picks.fold(1) { acc, it -> 31 * acc + it.hashCode() },
-            gives.fold(1) { acc, it -> 31 * acc + TODO("MergeState:hashCode($it)") },
+            gives.fold(1) { acc, it -> 31 * acc + Payload.hashCode(it) },
         )
     }
 
     override fun equals(other: Any?): Boolean {
-        if (other !is MergeState) return false
-        if (TreeSet(deleted) != TreeSet(other.deleted)) {
-            return false
+        return when (other) {
+            is MergeState -> {
+                return deleted == other.deleted &&
+                    picks == other.picks &&
+                    gives.size == other.gives.size &&
+                    gives.indices.all { index ->
+                        Payload.equals(expected = gives[index], actual = other.gives[index])
+                    }
+            }
+            else -> false
         }
-        if (TreeSet(picks) != TreeSet(other.picks)) {
-            return false
-        }
-        if (gives.size != other.gives.size) {
-            return false
-        }
-        TODO("MergeState:equals($other)")
-        return true
     }
 }
