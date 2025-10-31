@@ -13,7 +13,7 @@ internal class MutableStorageTest {
     @Test
     fun getTest(@TempDir dir: File) {
         val testSuite = SyncStoragesTestSuite(dir = dir)
-        val s11 = testSuite.s1[String::class.java] ?: error("No storage!")
+        val s11 = testSuite.require<String>(1)
         assertNull(s11[UUID(0, 0)])
         val value = "v1"
         val payload = s11.add(value = value)
@@ -25,9 +25,8 @@ internal class MutableStorageTest {
     @Test
     fun addTest(@TempDir dir: File) {
         val testSuite = SyncStoragesTestSuite(dir = dir)
-        val s11 = testSuite.s1[String::class.java] ?: error("No storage!")
         val value = "v1"
-        val payload = s11.add(value = value)
+        val p111 = testSuite.put(1, value = "v1")
         assertEquals(
             expected = Payload(
                 value = value,
@@ -40,43 +39,40 @@ internal class MutableStorageTest {
                     hash = testSuite.hashOf(value = value),
                 ),
             ),
-            actual = payload,
+            actual = p111,
         )
     }
 
     @Test
     fun deleteTest(@TempDir dir: File) {
         val testSuite = SyncStoragesTestSuite(dir = dir)
-        val s11 = testSuite.s1[String::class.java] ?: error("No storage!")
+        val s11 = testSuite.require<String>(1)
         val value = "v1"
-        val payload = s11.add(value = value)
-        assertEquals(value, payload.value)
-        assertTrue(testSuite.hashOf(value = value).contentEquals(payload.valueState.hash))
+        val p111 = testSuite.put(1, value = value)
+        assertEquals(value, p111.value)
+        assertTrue(testSuite.hashOf(value = value).contentEquals(p111.valueState.hash))
         //
-        val actual = s11[payload.valueInfo.id]
+        val actual = s11[p111.valueInfo.id]
         checkNotNull(actual)
-        assertEquals(payload.value, actual.value)
-        assertEquals(payload.valueInfo, actual.valueInfo)
-        assertEquals(payload.valueState.updated, actual.valueState.updated)
-        assertTrue(payload.valueState.hash.contentEquals(actual.valueState.hash))
+        assertEquals(expected = p111, actual = actual)
         //
-        assertTrue(s11.delete(payload.valueInfo.id))
-        assertNull(s11[payload.valueInfo.id])
+        assertTrue(s11.delete(p111.valueInfo.id))
+        assertNull(s11[p111.valueInfo.id])
     }
 
     @Test
     fun updateTest(@TempDir dir: File) {
         val testSuite = SyncStoragesTestSuite(dir = dir)
-        val s11 = testSuite.s1[String::class.java] ?: error("No storage!")
-        val payload = s11.add(value = "v1")
+        val s11 = testSuite.require<String>(1)
+        val p111 = testSuite.put(1, value = "v1")
         //
-        val valueState = s11.update(id = payload.valueInfo.id, value = "v2")
+        val valueState = s11.update(id = p111.valueInfo.id, value = "v2")
         checkNotNull(valueState)
         assertTrue(testSuite.hashOf(value = "v2").contentEquals(valueState.hash))
-        val actual = s11[payload.valueInfo.id]
+        val actual = s11[p111.valueInfo.id]
         checkNotNull(actual)
         assertEquals("v2", actual.value)
-        assertEquals(payload.valueInfo, actual.valueInfo)
+        assertEquals(p111.valueInfo, actual.valueInfo)
         assertEquals(valueState, actual.valueState)
     }
 }

@@ -20,7 +20,7 @@ class RealSyncStorages private constructor(
     class Builder {
         private val transformers = mutableMapOf<UUID, CompositeTransformer<out Any>>()
 
-        fun <T : Any> add(id: UUID, type: Class<T>, transformer: Transformer<T>): Builder {
+        fun <T : Any> add(id: UUID, type: Class<out T>, transformer: Transformer<T>): Builder {
             if (transformers.containsKey(id)) error("ID \"$id\" is repeated!")
             transformers[id] = CompositeTransformer(type = type, delegate = transformer)
             return this

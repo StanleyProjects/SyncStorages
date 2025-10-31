@@ -12,15 +12,14 @@ internal class SyncStoragesTest {
     fun addTest(@TempDir dir: File) {
         val testSuite = SyncStoragesTestSuite(dir = dir)
         //
-        val s11 = testSuite.s1[String::class.java] ?: error("No storage!")
-        val p111 = s11.add(value = "v1")
-        val s12 = testSuite.s1[Int::class.java] ?: error("No storage!")
-        val p121 = s12.add(value = 421)
-        //
-        val s21 = testSuite.s2[String::class.java] ?: error("No storage!")
-        val p211 = s21.add(value = "v2")
-        val s22 = testSuite.s2[Int::class.java] ?: error("No storage!")
-        val p221 = s22.add(value = 422)
+        val s11 = testSuite.require<String>(1)
+        val p111 = testSuite.put(1, value = "v1")
+        val s12 = testSuite.require<Int>(1)
+        val p121 = testSuite.put(1, value = 421)
+        val s21 = testSuite.require<String>(2)
+        val p211 = testSuite.put(2, value = "v2")
+        val s22 = testSuite.require<Int>(2)
+        val p221 = testSuite.put(2, value = 422)
         //
         assertEquals(expected = p111, actual = s11.payloads.single())
         assertEquals(
@@ -91,15 +90,14 @@ internal class SyncStoragesTest {
     fun getSyncStatesTest(@TempDir dir: File) {
         val testSuite = SyncStoragesTestSuite(dir = dir)
         //
-        val s11 = testSuite.s1[String::class.java] ?: error("No storage!")
-        val p111 = s11.add(value = "v1")
-        val s12 = testSuite.s1[Int::class.java] ?: error("No storage!")
-        val p121 = s12.add(value = 421)
-        //
-        val s21 = testSuite.s2[String::class.java] ?: error("No storage!")
-        val p211 = s21.add(value = "v2")
-        val s22 = testSuite.s2[Int::class.java] ?: error("No storage!")
-        val p221 = s22.add(value = 422)
+        val s11 = testSuite.require<String>(1)
+        val p111 = testSuite.put(1, value = "v1")
+        val s12 = testSuite.require<Int>(1)
+        val p121 = testSuite.put(1, value = 421)
+        val s21 = testSuite.require<String>(2)
+        val p211 = testSuite.put(2, value = "v2")
+        val s22 = testSuite.require<Int>(2)
+        val p221 = testSuite.put(2, value = 422)
         //
         assertEquals(
             expected = mapOf(
@@ -152,15 +150,14 @@ internal class SyncStoragesTest {
     fun getMergeStatesTest(@TempDir dir: File) {
         val testSuite = SyncStoragesTestSuite(dir = dir)
         //
-        val s11 = testSuite.s1[String::class.java] ?: error("No storage!")
-        val p111 = s11.add(value = "v1")
-        val s12 = testSuite.s1[Int::class.java] ?: error("No storage!")
-        val p121 = s12.add(value = 421)
-        //
-        val s21 = testSuite.s2[String::class.java] ?: error("No storage!")
-        val p211 = s21.add(value = "v2")
-        val s22 = testSuite.s2[Int::class.java] ?: error("No storage!")
-        val p221 = s22.add(value = 422)
+        val s11 = testSuite.require<String>(1)
+        val p111 = testSuite.put(1, value = "v1")
+        val s12 = testSuite.require<Int>(1)
+        val p121 = testSuite.put(1, value = 421)
+        val s21 = testSuite.require<String>(2)
+        val p211 = testSuite.put(2, value = "v2")
+        val s22 = testSuite.require<Int>(2)
+        val p221 = testSuite.put(2, value = 422)
         //
         assertEquals(
             expected = mapOf(
@@ -188,7 +185,7 @@ internal class SyncStoragesTest {
                     gives = listOf(Transformers.Ints.map(payload = p121)),
                 ),
             ),
-            actual = testSuite.s1.getMergeStates(syncStates = testSuite.s2.getSyncStates()),
+            actual = testSuite.s2.getMergeStates(syncStates = testSuite.s1.getSyncStates()),
             assert = { _, expected, actual -> expected.assertEquals(actual = actual) },
         )
     }
