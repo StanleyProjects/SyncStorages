@@ -9,8 +9,9 @@ internal inline fun <reified T : Any> assertEquals(
     actual: Collection<T>,
     comparator: Comparator<in T>,
     assert: (index: Int, expected: T, actual: T) -> Unit,
+    message: String = T::class.java.name,
 ) {
-    assertEquals(expected.size, actual.size, T::class.java.name)
+    assertEquals(expected.size, actual.size, message)
     val sorted = actual.sortedWith(comparator)
     expected.sortedWith(comparator).forEachIndexed { index, e ->
         assert(index, e, sorted[index])
@@ -61,8 +62,9 @@ internal fun ValueInfo.assertEquals(actual: ValueInfo) {
 internal fun ValueState.assertEquals(actual: ValueState) {
     assertEquals(updated, actual.updated)
     val message = """
+        ValueState:hash:
         expected: ${hash.hex()}
-        actual:   ${hash.hex()}
+        actual:   ${actual.hash.hex()}
     """.trimIndent()
     assertTrue(hash.contentEquals(actual.hash), message)
     assertEquals(this, actual, message)
@@ -87,5 +89,22 @@ internal fun MergeState.assertEquals(actual: MergeState) {
         comparator = Comparators.payloads,
         assert = { index, e, a -> e.assertEquals(actual = a, message = "MergeState:gives[$index]") },
     )
+    assertEquals(this, actual)
+}
+
+internal fun CommitState.assertEquals(actual: CommitState) {
+    assertEquals(expected = deleted, actual = actual.deleted, message = "CommitState:deleted")
+    assertEquals(
+        expected = gives,
+        actual = actual.gives,
+        comparator = Comparators.payloads,
+        assert = { index, e, a -> e.assertEquals(actual = a, message = "CommitState:gives[$index]") },
+    )
+    val message = """
+        CommitState:hash:
+        expected: ${hash.hex()}
+        actual:   ${actual.hash.hex()}
+    """.trimIndent()
+    assertTrue(hash.contentEquals(actual.hash), message)
     assertEquals(this, actual)
 }
