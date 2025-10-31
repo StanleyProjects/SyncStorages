@@ -277,9 +277,9 @@ internal class SyncStorage<T : Any>(
                 }
             }
             return MergeState(
+                deleted = deleted,
                 picks = picks,
                 gives = gives,
-                deleted = deleted,
             )
         }
 

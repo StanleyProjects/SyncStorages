@@ -73,6 +73,7 @@ internal fun SyncState.assertEquals(actual: SyncState) {
 }
 
 internal fun MergeState.assertEquals(actual: MergeState) {
+    assertEquals(expected = deleted, actual = actual.deleted, message = "MergeState:deleted")
     assertEquals(expected = picks, actual = actual.picks, message = "MergeState:picks")
     assertEquals(
         expected = gives,
@@ -80,6 +81,5 @@ internal fun MergeState.assertEquals(actual: MergeState) {
         comparator = Comparators.payloads,
         assert = { index, e, a -> e.assertEquals(actual = a, message = "MergeState:gives[$index]") },
     )
-    assertEquals(expected = deleted, actual = actual.deleted, message = "MergeState:deleted")
     assertEquals(this, actual)
 }
