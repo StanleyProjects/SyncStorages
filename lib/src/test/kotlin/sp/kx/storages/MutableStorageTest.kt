@@ -15,8 +15,7 @@ internal class MutableStorageTest {
         val testSuite = SyncStoragesTestSuite(dir = dir)
         val s11 = testSuite.require<String>(1)
         assertNull(s11[UUID(0, 0)])
-        val value = "v1"
-        val payload = s11.add(value = value)
+        val payload = s11.add(value = "v1")
         val actual = s11[payload.valueInfo.id]
         checkNotNull(actual)
         assertEquals(expected = payload, actual = actual)
@@ -31,7 +30,7 @@ internal class MutableStorageTest {
             expected = Payload(
                 value = value,
                 valueInfo = ValueInfo(
-                    id = UUID(0, 2),
+                    id = UUID(0, 0),
                     created = 0.milliseconds,
                 ),
                 valueState = ValueState(
