@@ -26,7 +26,7 @@ internal class MutableStorageTest {
     fun addTest(@TempDir dir: File) {
         val testSuite = SyncStoragesTestSuite(dir = dir)
         val value = "v1"
-        val p111 = testSuite.put(1, value = "v1")
+        val p111 = testSuite.add(1, value = "v1")
         assertEquals(
             expected = Payload(
                 value = value,
@@ -48,7 +48,7 @@ internal class MutableStorageTest {
         val testSuite = SyncStoragesTestSuite(dir = dir)
         val s11 = testSuite.require<String>(1)
         val value = "v1"
-        val p111 = testSuite.put(1, value = value)
+        val p111 = testSuite.add(1, value = value)
         assertEquals(value, p111.value)
         assertTrue(testSuite.hashOf(value = value).contentEquals(p111.valueState.hash))
         //
@@ -64,7 +64,7 @@ internal class MutableStorageTest {
     fun updateTest(@TempDir dir: File) {
         val testSuite = SyncStoragesTestSuite(dir = dir)
         val s11 = testSuite.require<String>(1)
-        val p111 = testSuite.put(1, value = "v1")
+        val p111 = testSuite.add(1, value = "v1")
         //
         val valueState = s11.update(id = p111.valueInfo.id, value = "v2")
         checkNotNull(valueState)

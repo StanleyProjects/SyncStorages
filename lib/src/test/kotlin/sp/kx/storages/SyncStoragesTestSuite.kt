@@ -1,5 +1,6 @@
 package sp.kx.storages
 
+import sp.kx.bytes.Transformer
 import sp.kx.hashes.Hashes
 import sp.kx.ids.Ids
 import sp.kx.times.Times
@@ -14,11 +15,11 @@ internal class SyncStoragesTestSuite {
     val s1: SyncStorages get() = stack[1]
     val s2: SyncStorages get() = stack[2]
 
-    private fun <T : Any> RealSyncStorages.Builder.add(
+    private inline fun <reified T : Any> RealSyncStorages.Builder.add(
         id: UUID,
-        ct: CompositeTransformer<T>,
+        transformer: Transformer<T>,
     ): RealSyncStorages.Builder {
-        return add(id = id, type = ct.type, transformer = ct.delegate)
+        return add(id = id, type = T::class.java, transformer = transformer)
     }
 
     constructor(
@@ -27,25 +28,21 @@ internal class SyncStoragesTestSuite {
         times: Times = MockTimes(),
         ids: Ids = MockIds(),
         count: Int = 3,
-        transformers: List<CompositeTransformer<out Any>> = listOf(
-            CompositeTransformer(String::class.java, Transformers.Strings),
-            CompositeTransformer(Int::class.java, Transformers.Ints),
-        ),
     ) {
         this.hashes = hashes
         this.times = times
         this.ids = ids
         this.stack = (0 until count).map { index ->
-            val builder = RealSyncStorages.Builder()
-            transformers.forEachIndexed { ci, ct ->
-                builder.add(id = UUID(ci.toLong(), 0), ct = ct)
-            }
-            builder.build(
-                dir = dir.resolve("storages-$index").also { check(it.mkdir()) },
-                hashes = hashes,
-                times = times,
-                ids = ids,
-            )
+            var mostSigBits = 0L
+            RealSyncStorages.Builder()
+                .add(UUID(mostSigBits++, 0), Transformers.Strings)
+                .add(UUID(mostSigBits++, 0), Transformers.Ints)
+                .build(
+                    dir = dir.resolve("storages-$index").also { check(it.mkdir()) },
+                    hashes = hashes,
+                    times = times,
+                    ids = ids,
+                )
         }
     }
 
@@ -57,7 +54,7 @@ internal class SyncStoragesTestSuite {
         return hashes.map(Transformers.Ints.encode(value))
     }
 
-    fun put(index: Int, value: String): Payload<String> {
+    fun add(index: Int, value: String): Payload<String> {
         val storage = require<String>(index = index)
         val payload = storage.add(value = value)
         check(payload.value == value)
@@ -66,7 +63,7 @@ internal class SyncStoragesTestSuite {
         return payload
     }
 
-    fun put(index: Int, value: Int): Payload<Int> {
+    fun add(index: Int, value: Int): Payload<Int> {
         val storage = require<Int>(index = index)
         val payload = storage.add(value = value)
         check(payload.value == value)
