@@ -159,7 +159,6 @@ internal class SyncStorage<T : Any>(
             return ByteArrayOutputStream().use { stream ->
                 payloads.forEach { payload ->
                     stream.writeBytes(payload.valueInfo.id)
-                    stream.writeBytes(payload.valueState.updated.inWholeMilliseconds)
                     stream.writeBytes(payload.valueState.hash)
                 }
                 stream.toByteArray()
@@ -203,7 +202,7 @@ internal class SyncStorage<T : Any>(
             )
         }
 
-        private fun <U : Any> readPayload(stream: InputStream, hashes: Hashes, transformer: Transformer<U>): Payload<U> {
+        private fun <T : Any> readPayload(stream: InputStream, hashes: Hashes, transformer: Transformer<T>): Payload<T> {
             val valueInfo = ValueInfo(
                 id = stream.readUUID(),
                 created = stream.readLong().milliseconds,

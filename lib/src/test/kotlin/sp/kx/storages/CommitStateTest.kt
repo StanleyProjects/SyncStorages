@@ -20,18 +20,34 @@ internal class CommitStateTest {
         val p221 = testSuite.add(2, value = 422)
         //
         val s2MergeStates = testSuite.s2.getMergeStates(testSuite.s1.getSyncStates())
+        assertEquals(expected = p111, actual = s11.payloads.single())
+        assertEquals(expected = p121, actual = s12.payloads.single())
+        val s1CommitStates = testSuite.s1.merge(mergeStates = s2MergeStates)
+        assertEquals(
+            expected = listOf(p111, p211),
+            actual = s11.payloads,
+            comparator = Comparators.payloads,
+            assert = { _, expected, actual -> assertEquals(expected = expected, actual = actual) },
+        )
+        assertEquals(
+            expected = listOf(p121, p221),
+            actual = s12.payloads,
+            comparator = Comparators.payloads,
+            assert = { _, expected, actual -> assertEquals(expected = expected, actual = actual) },
+        )
+        //
         assertEquals(
             expected = mapOf(
                 s11.id to mockCommitState(
                     gives = listOf(Transformers.Strings.map(p111)),
-                    hash = HexFormat.of().parseHex("ad8a19c4cc9baadc107b4e397cb0fdc3"),
+                    hash = HexFormat.of().parseHex("eb2f674ab7b27393553bca2c80107885"),
                 ),
                 s12.id to mockCommitState(
                     gives = listOf(Transformers.Ints.map(p121)),
-                    hash = HexFormat.of().parseHex("6aaa777a09f161ae17bea22665cf314c"),
+                    hash = HexFormat.of().parseHex("cce52eca8417a422e02f16e4ca85bd4e"),
                 ),
             ),
-            actual = testSuite.s1.merge(mergeStates = s2MergeStates),
+            actual = s1CommitStates,
             assert = { _, expected, actual -> expected.assertEquals(actual = actual) },
         )
     }
@@ -50,18 +66,34 @@ internal class CommitStateTest {
         val p221 = testSuite.add(2, value = 422)
         //
         val s1MergeStates = testSuite.s1.getMergeStates(testSuite.s2.getSyncStates())
+        assertEquals(expected = p211, actual = s21.payloads.single())
+        assertEquals(expected = p221, actual = s22.payloads.single())
+        val s2CommitStates = testSuite.s2.merge(mergeStates = s1MergeStates)
+        assertEquals(
+            expected = listOf(p111, p211),
+            actual = s21.payloads,
+            comparator = Comparators.payloads,
+            assert = { _, expected, actual -> assertEquals(expected = expected, actual = actual) },
+        )
+        assertEquals(
+            expected = listOf(p121, p221),
+            actual = s22.payloads,
+            comparator = Comparators.payloads,
+            assert = { _, expected, actual -> assertEquals(expected = expected, actual = actual) },
+        )
+        //
         assertEquals(
             expected = mapOf(
                 s21.id to mockCommitState(
                     gives = listOf(Transformers.Strings.map(p211)),
-                    hash = HexFormat.of().parseHex("ad8a19c4cc9baadc107b4e397cb0fdc3"),
+                    hash = HexFormat.of().parseHex("eb2f674ab7b27393553bca2c80107885"),
                 ),
                 s22.id to mockCommitState(
                     gives = listOf(Transformers.Ints.map(p221)),
-                    hash = HexFormat.of().parseHex("6aaa777a09f161ae17bea22665cf314c"),
+                    hash = HexFormat.of().parseHex("cce52eca8417a422e02f16e4ca85bd4e"),
                 ),
             ),
-            actual = testSuite.s2.merge(mergeStates = s1MergeStates),
+            actual = s2CommitStates,
             assert = { _, expected, actual -> expected.assertEquals(actual = actual) },
         )
     }
