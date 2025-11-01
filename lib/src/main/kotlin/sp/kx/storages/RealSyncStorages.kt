@@ -42,6 +42,15 @@ class RealSyncStorages private constructor(
         ): SyncStorages {
             if (holders.isEmpty()) error("Empty storages!")
             // todo check dir
+            for (holder in holders) {
+                val src = dir.resolve(holder.id.toString())
+                if (src.length() == 0L) {
+                    src.outputStream().use { stream ->
+                        stream.writeBytes(0) // deleted
+                        stream.writeBytes(0) // payloads
+                    }
+                }
+            }
             return RealSyncStorages(
                 dir = dir,
                 holders = holders,
@@ -56,12 +65,6 @@ class RealSyncStorages private constructor(
         for (holder in holders) {
             if (!type.isAssignableFrom(holder.type)) continue
             val src = dir.resolve(holder.id.toString())
-            if (src.length() == 0L) {
-                src.outputStream().use { stream ->
-                    stream.writeBytes(0) // deleted
-                    stream.writeBytes(0) // payloads
-                }
-            }
             return SyncStorage(
                 id = holder.id,
                 streamer = MutableFileStreamer(src = src),

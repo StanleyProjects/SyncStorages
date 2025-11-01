@@ -65,7 +65,7 @@ internal class MutableStorageTest {
         val s11 = testSuite.require<String>(1)
         val p111 = testSuite.add(1, value = "v1")
         //
-        val valueState = s11.update(id = p111.valueInfo.id, value = "v2")
+        val valueState = testSuite.update(1, id = p111.valueInfo.id, value = "v2")
         checkNotNull(valueState)
         assertTrue(testSuite.hashOf(value = "v2").contentEquals(valueState.hash))
         val actual = s11[p111.valueInfo.id]

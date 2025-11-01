@@ -57,15 +57,6 @@ internal class SyncStorage<T : Any>(
         }
     }
 
-    fun commit(commitState: CommitState): Boolean {
-        return commit(
-            streamer = streamer,
-            hashes = hashes,
-            transformer = transformer,
-            commitState = commitState,
-        )
-    }
-
     override fun add(value: T): Payload<T> {
         val created = times.now()
         val payload = Payload(

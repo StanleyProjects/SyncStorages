@@ -72,6 +72,27 @@ internal class SyncStoragesTestSuite {
         return payload
     }
 
+    fun update(index: Int, id: UUID, value: String): ValueState? {
+        val storage = require<String>(index = index)
+        val before = storage[id]
+        val valueState = storage.update(id = id, value = value)
+        if (before == null) {
+            check(valueState == null)
+            return null
+        }
+        check(before.value != value)
+        checkNotNull(valueState)
+        check(valueState.updated >= before.valueState.updated)
+        check(!valueState.hash.contentEquals(before.valueState.hash))
+        check(valueState.hash.contentEquals(hashes.map(Transformers.Strings.encode(value))))
+        val after = storage[id]
+        checkNotNull(after)
+        check(after.value == value)
+        check(after.valueInfo == before.valueInfo)
+        check(after.valueState == valueState)
+        return valueState
+    }
+
     inline fun <reified T : Any> require(index: Int): MutableStorage<T> {
         return stack[index][T::class.java] ?: error("No storage($index/${T::class.java.name})!")
     }
