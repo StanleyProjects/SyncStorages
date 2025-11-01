@@ -129,7 +129,7 @@ class RealSyncStorages private constructor(
                 transformer = transformer,
                 commitState = commitState,
             )
-            if (commited) result += id
+            if (commited) result.add(id)
         }
         return result
     }

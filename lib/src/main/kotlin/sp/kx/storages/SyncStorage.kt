@@ -239,13 +239,13 @@ internal class SyncStorage<T : Any>(
             syncState: SyncState,
         ): MergeState {
             val deleted = HashSet<UUID>()
-            val locals: List<Payload<ByteArray>>
+            val locals = ArrayList<Payload<ByteArray>>()
             streamer.reader().use { stream ->
                 (0 until stream.readInt()).forEach { _ ->
                     deleted.add(stream.readUUID())
                 }
-                locals = (0 until stream.readInt()).map { _ ->
-                    readPayload(stream = stream, hashes = hashes)
+                (0 until stream.readInt()).forEach { _ ->
+                    locals.add(readPayload(stream = stream, hashes = hashes))
                 }
             }
             val picks = HashSet<UUID>()
@@ -280,13 +280,13 @@ internal class SyncStorage<T : Any>(
             mergeState: MergeState,
         ): CommitState {
             val deleted = HashSet<UUID>()
-            val locals: List<Payload<ByteArray>>
+            val locals = ArrayList<Payload<ByteArray>>()
             streamer.reader().use { stream ->
                 (0 until stream.readInt()).forEach { _ ->
                     deleted.add(stream.readUUID())
                 }
-                locals = (0 until stream.readInt()).map { _ ->
-                    readPayload(stream = stream, hashes = hashes)
+                (0 until stream.readInt()).forEach { _ ->
+                    locals.add(readPayload(stream = stream, hashes = hashes))
                 }
             }
             val payloads = mutableListOf<Payload<T>>()
@@ -324,31 +324,33 @@ internal class SyncStorage<T : Any>(
             commitState: CommitState,
         ): Boolean {
             val deleted = HashSet<UUID>()
-            val payloads = mutableListOf<Payload<T>>()
+            val locals = ArrayList<Payload<T>>()
             // todo no changes
             streamer.reader().use { stream ->
                 (0 until stream.readInt()).forEach { _ ->
                     deleted.add(stream.readUUID())
                 }
-                val locals = (0 until stream.readInt()).map { _ ->
-                    readPayload(stream = stream, hashes = hashes, transformer = transformer)
-                }
-                for (payload in locals) {
-                    if (commitState.deleted.contains(payload.valueInfo.id)) continue
-                    if (commitState.gives.any { it.valueInfo.id == payload.valueInfo.id }) continue
-                    payloads.add(payload)
-                }
-                for (payload in commitState.gives) {
-                    payloads.add(payload.map(transformer))
+                (0 until stream.readInt()).forEach { _ ->
+                    locals.add(readPayload(stream = stream, hashes = hashes, transformer = transformer))
                 }
             }
+            val payloads = ArrayList<Payload<T>>()
+            for (payload in locals) {
+                if (commitState.deleted.contains(payload.valueInfo.id)) continue
+                if (commitState.gives.any { it.valueInfo.id == payload.valueInfo.id }) continue
+                payloads.add(payload)
+            }
+            for (payload in commitState.gives) {
+                payloads.add(payload.map(transformer))
+            }
             payloads.sortWith(Comparators.payloads)
+            deleted.addAll(commitState.deleted)
             val hash = hashes.map(bytesOf(payloads = payloads))
             check(hash.contentEquals(commitState.hash)) { "Wrong hash!" }
             streamer.writer().use { stream ->
                 write(
                     stream = stream,
-                    deleted = deleted + commitState.deleted,
+                    deleted = deleted,
                     payloads = payloads,
                     transformer = transformer,
                 )
