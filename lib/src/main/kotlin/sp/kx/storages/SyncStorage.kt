@@ -37,27 +37,6 @@ internal class SyncStorage<T : Any>(
             }
         }
 
-    private val deleted: Set<UUID>
-        get() {
-            return streamer.reader().use { stream ->
-                (0 until stream.readInt()).mapTo(HashSet()) { stream.readUUID() }
-            }
-        }
-
-    private fun write(
-        deleted: Set<UUID> = this.deleted,
-        payloads: List<Payload<T>>,
-    ) {
-        streamer.writer().use { stream ->
-            write(
-                stream = stream,
-                deleted = deleted,
-                payloads = payloads,
-                transformer = transformer,
-            )
-        }
-    }
-
     override fun add(value: T): Payload<T> {
         val deleted = HashSet<UUID>()
         val locals = ArrayList<Payload<ByteArray>>()
