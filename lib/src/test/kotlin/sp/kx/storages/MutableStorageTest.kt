@@ -66,8 +66,8 @@ internal class MutableStorageTest {
         assertEquals(expected = p111, actual = s11.payloads.single())
         assertNull(testSuite.update(1, id = UUID(1, 0), value = "foo"))
         //
-        val updated = testSuite.update(1, id = p111.id, value = "v2")
-        checkNotNull(updated)
+        val after = testSuite.update(1, id = p111.id, value = "v2")
+        checkNotNull(after)
         val actual = s11[p111.id]
         checkNotNull(actual)
         assertNotEquals(p111.value, actual.value)
@@ -75,6 +75,6 @@ internal class MutableStorageTest {
         assertEquals(p111.id, actual.id)
         assertEquals(p111.created, actual.created)
         assertTrue(p111.updated <= actual.updated)
-        assertEquals(updated, actual.updated)
+        assertEquals(expected = after, actual = actual)
     }
 }
