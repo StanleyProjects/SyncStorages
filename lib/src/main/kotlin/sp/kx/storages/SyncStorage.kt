@@ -9,12 +9,10 @@ import sp.kx.bytes.writeBytes
 import sp.kx.hashes.Hashes
 import sp.kx.ids.Ids
 import sp.kx.streamers.MutableStreamer
-import sp.kx.streamers.Streamer
 import sp.kx.times.Times
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
 import java.io.OutputStream
-import java.util.HashMap
 import java.util.UUID
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -38,18 +36,18 @@ internal class SyncStorage<T : Any>(
 
     override fun add(value: T): Payload<T> {
         val deleted = HashSet<UUID>()
-        val locals = ArrayList<Payload<ByteArray>>()
+        val payloads = ArrayList<Payload<ByteArray>>()
         streamer.reader().use { stream ->
             (0 until stream.readInt()).forEach { _ ->
                 deleted.add(stream.readUUID())
             }
             (0 until stream.readInt()).forEach { _ ->
-                locals.add(SyncStorageAlgorithms.readPayload(stream = stream))
+                payloads.add(SyncStorageAlgorithms.readPayload(stream = stream))
             }
         }
         val id = ids.random()
         val created = times.now()
-        locals += Payload(
+        payloads += Payload(
             id = id,
             created = created,
             updated = created,
@@ -59,7 +57,7 @@ internal class SyncStorage<T : Any>(
             SyncStorageAlgorithms.write(
                 stream = stream,
                 deleted = deleted,
-                payloads = locals,
+                payloads = payloads,
             )
         }
         return Payload(
@@ -72,25 +70,25 @@ internal class SyncStorage<T : Any>(
 
     override fun delete(id: UUID): Boolean {
         val deleted = HashSet<UUID>()
-        val locals = ArrayList<Payload<ByteArray>>()
+        val payloads = ArrayList<Payload<ByteArray>>()
         streamer.reader().use { stream ->
             (0 until stream.readInt()).forEach { _ ->
                 deleted.add(stream.readUUID())
             }
             (0 until stream.readInt()).forEach { _ ->
-                locals.add(SyncStorageAlgorithms.readPayload(stream = stream))
+                payloads.add(SyncStorageAlgorithms.readPayload(stream = stream))
             }
         }
-        for (index in locals.indices) {
-            val it = locals[index]
+        for (index in payloads.indices) {
+            val it = payloads[index]
             if (it.id == id) {
-                locals.removeAt(index)
+                payloads.removeAt(index)
                 deleted.add(id)
                 streamer.writer().use { stream ->
                     SyncStorageAlgorithms.write(
                         stream = stream,
                         deleted = deleted,
-                        payloads = locals,
+                        payloads = payloads,
                     )
                 }
                 return true
@@ -101,21 +99,21 @@ internal class SyncStorage<T : Any>(
 
     override fun update(id: UUID, value: T): Duration? {
         val deleted = HashSet<UUID>()
-        val locals = ArrayList<Payload<ByteArray>>()
+        val payloads = ArrayList<Payload<ByteArray>>()
         streamer.reader().use { stream ->
             (0 until stream.readInt()).forEach { _ ->
                 deleted.add(stream.readUUID())
             }
             (0 until stream.readInt()).forEach { _ ->
-                locals.add(SyncStorageAlgorithms.readPayload(stream = stream))
+                payloads.add(SyncStorageAlgorithms.readPayload(stream = stream))
             }
         }
-        for (index in locals.indices) {
-            val it = locals[index]
+        for (index in payloads.indices) {
+            val it = payloads[index]
             if (it.id == id) {
-                locals.removeAt(index)
+                payloads.removeAt(index)
                 val updated = times.now()
-                locals += Payload(
+                payloads += Payload(
                     id = it.id,
                     created = it.created,
                     updated = updated,
@@ -125,7 +123,7 @@ internal class SyncStorage<T : Any>(
                     SyncStorageAlgorithms.write(
                         stream = stream,
                         deleted = deleted,
-                        payloads = locals,
+                        payloads = payloads,
                     )
                 }
                 return updated
@@ -207,50 +205,6 @@ internal class SyncStorage<T : Any>(
                 created = created,
                 updated = updated,
                 value = transformer.decode(encoded = encoded),
-            )
-        }
-
-        fun <T : Any> merge(
-            streamer: MutableStreamer,
-            hashes: Hashes,
-            transformer: Transformer<T>,
-            mergeState: MergeState,
-        ): CommitState {
-            val deleted = HashSet<UUID>()
-            val locals = ArrayList<Payload<ByteArray>>()
-            streamer.reader().use { stream ->
-                (0 until stream.readInt()).forEach { _ ->
-                    deleted.add(stream.readUUID())
-                }
-                (0 until stream.readInt()).forEach { _ ->
-                    locals.add(SyncStorageAlgorithms.readPayload(stream = stream))
-                }
-            }
-            val payloads = mutableListOf<Payload<T>>()
-            val gives = mutableListOf<Payload<ByteArray>>()
-            for (payload in locals) {
-                if (mergeState.deleted.contains(payload.id)) continue
-                if (mergeState.gives.any { it.id == payload.id }) continue
-                if (mergeState.picks.contains(payload.id)) gives.add(payload)
-                payloads.add(payload.map(transformer))
-            }
-            for (payload in mergeState.gives) {
-                payloads.add(payload.map(transformer))
-            }
-            payloads.sortWith(Comparators.payloads)
-            deleted.addAll(mergeState.deleted)
-            streamer.writer().use { stream ->
-                write(
-                    stream = stream,
-                    deleted = deleted,
-                    payloads = payloads,
-                    transformer = transformer,
-                )
-            }
-            return CommitState(
-                hash = hashes.map(bytesOf(payloads = payloads, hashes = hashes, transformer = transformer)),
-                gives = gives,
-                deleted = deleted,
             )
         }
 

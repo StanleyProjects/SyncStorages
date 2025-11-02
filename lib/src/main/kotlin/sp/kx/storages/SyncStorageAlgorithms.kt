@@ -6,7 +6,9 @@ import sp.kx.bytes.readLong
 import sp.kx.bytes.readUUID
 import sp.kx.bytes.writeBytes
 import sp.kx.hashes.Hashes
+import sp.kx.streamers.MutableStreamer
 import sp.kx.streamers.Streamer
+import java.io.ByteArrayOutputStream
 import java.io.InputStream
 import java.io.OutputStream
 import java.util.UUID
@@ -36,6 +38,16 @@ internal object SyncStorageAlgorithms {
             stream.writeBytes(payload.updated.inWholeMilliseconds)
             stream.writeBytes(payload.value.size)
             stream.write(payload.value)
+        }
+    }
+
+    private fun bytesOf(payloads: List<Payload<ByteArray>>, hashes: Hashes): ByteArray {
+        return ByteArrayOutputStream().use { stream ->
+            payloads.forEach { payload ->
+                stream.writeBytes(payload.id)
+                stream.writeBytes(hashes.map(payload.value))
+            }
+            stream.toByteArray()
         }
     }
 
@@ -103,6 +115,48 @@ internal object SyncStorageAlgorithms {
             deleted = deleted,
             picks = picks,
             gives = gives,
+        )
+    }
+
+    fun merge(
+        streamer: MutableStreamer,
+        hashes: Hashes,
+        mergeState: MergeState,
+    ): CommitState {
+        val deleted = HashSet<UUID>()
+        val locals = ArrayList<Payload<ByteArray>>()
+        streamer.reader().use { stream ->
+            (0 until stream.readInt()).forEach { _ ->
+                deleted.add(stream.readUUID())
+            }
+            (0 until stream.readInt()).forEach { _ ->
+                locals.add(readPayload(stream = stream))
+            }
+        }
+        val payloads = mutableListOf<Payload<ByteArray>>()
+        val gives = mutableListOf<Payload<ByteArray>>()
+        for (payload in locals) {
+            if (mergeState.deleted.contains(payload.id)) continue
+            if (mergeState.gives.any { it.id == payload.id }) continue
+            if (mergeState.picks.contains(payload.id)) gives.add(payload)
+            payloads.add(payload)
+        }
+        for (payload in mergeState.gives) {
+            payloads.add(payload)
+        }
+        payloads.sortWith(Comparators.payloads)
+        deleted.addAll(mergeState.deleted)
+        streamer.writer().use { stream ->
+            write(
+                stream = stream,
+                deleted = deleted,
+                payloads = payloads,
+            )
+        }
+        return CommitState(
+            hash = hashes.map(bytesOf(payloads = payloads, hashes = hashes)),
+            gives = gives,
+            deleted = deleted,
         )
     }
 }
