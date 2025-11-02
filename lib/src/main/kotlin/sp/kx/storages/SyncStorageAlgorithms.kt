@@ -159,4 +159,41 @@ internal object SyncStorageAlgorithms {
             deleted = deleted,
         )
     }
+
+    fun commit(
+        streamer: MutableStreamer,
+        hashes: Hashes,
+        commitState: CommitState,
+    ): Boolean {
+        val deleted = HashSet<UUID>()
+        val locals = ArrayList<Payload<ByteArray>>()
+        // todo no changes
+        streamer.reader().use { stream ->
+            (0 until stream.readInt()).forEach { _ ->
+                deleted.add(stream.readUUID())
+            }
+            (0 until stream.readInt()).forEach { _ ->
+                locals.add(readPayload(stream = stream))
+            }
+        }
+        val payloads = ArrayList<Payload<ByteArray>>()
+        for (payload in locals) {
+            if (commitState.deleted.contains(payload.id)) continue
+            if (commitState.gives.any { it.id == payload.id }) continue
+            payloads.add(payload)
+        }
+        payloads.addAll(commitState.gives)
+        payloads.sortWith(Comparators.payloads)
+        deleted.addAll(commitState.deleted)
+        val hash = hashes.map(bytesOf(payloads = payloads, hashes = hashes))
+        check(hash.contentEquals(commitState.hash)) { "Wrong hash!" }
+        streamer.writer().use { stream ->
+            write(
+                stream = stream,
+                deleted = deleted,
+                payloads = payloads,
+            )
+        }
+        return true
+    }
 }

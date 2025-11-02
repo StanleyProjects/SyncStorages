@@ -156,45 +156,6 @@ internal class SyncStorage<T : Any>(
     }
 
     companion object {
-        private fun <T : Any> Payload<ByteArray>.map(transformer: Transformer<T>): Payload<T> {
-            return Payload(
-                id = id,
-                created = created,
-                updated = updated,
-                value = transformer.decode(value),
-            )
-        }
-
-        private fun <T : Any> bytesOf(payloads: List<Payload<T>>, hashes: Hashes, transformer: Transformer<T>): ByteArray {
-            return ByteArrayOutputStream().use { stream ->
-                payloads.forEach { payload ->
-                    stream.writeBytes(payload.id)
-                    stream.writeBytes(hashes.map(transformer.encode(payload.value)))
-                }
-                stream.toByteArray()
-            }
-        }
-
-        private fun <T : Any> write(
-            stream: OutputStream,
-            deleted: Set<UUID>,
-            payloads: List<Payload<out T>>,
-            transformer: Transformer<in T>,
-        ) {
-            stream.writeBytes(deleted.size)
-            deleted.forEach(stream::writeBytes)
-            //
-            stream.writeBytes(payloads.size)
-            payloads.forEach { payload ->
-                stream.writeBytes(payload.id)
-                stream.writeBytes(payload.created.inWholeMilliseconds)
-                stream.writeBytes(payload.updated.inWholeMilliseconds)
-                val encoded = transformer.encode(payload.value)
-                stream.writeBytes(encoded.size)
-                stream.write(encoded)
-            }
-        }
-
         private fun <T : Any> readPayload(stream: InputStream, transformer: Transformer<T>): Payload<T> {
             val id = stream.readUUID()
             val created = stream.readLong().milliseconds
@@ -206,47 +167,6 @@ internal class SyncStorage<T : Any>(
                 updated = updated,
                 value = transformer.decode(encoded = encoded),
             )
-        }
-
-        fun <T : Any> commit(
-            streamer: MutableStreamer,
-            hashes: Hashes,
-            transformer: Transformer<T>,
-            commitState: CommitState,
-        ): Boolean {
-            val deleted = HashSet<UUID>()
-            val locals = ArrayList<Payload<T>>()
-            // todo no changes
-            streamer.reader().use { stream ->
-                (0 until stream.readInt()).forEach { _ ->
-                    deleted.add(stream.readUUID())
-                }
-                (0 until stream.readInt()).forEach { _ ->
-                    locals.add(readPayload(stream = stream, transformer = transformer))
-                }
-            }
-            val payloads = ArrayList<Payload<T>>()
-            for (payload in locals) {
-                if (commitState.deleted.contains(payload.id)) continue
-                if (commitState.gives.any { it.id == payload.id }) continue
-                payloads.add(payload)
-            }
-            for (payload in commitState.gives) {
-                payloads.add(payload.map(transformer))
-            }
-            payloads.sortWith(Comparators.payloads)
-            deleted.addAll(commitState.deleted)
-            val hash = hashes.map(bytesOf(payloads = payloads, hashes = hashes, transformer = transformer))
-            check(hash.contentEquals(commitState.hash)) { "Wrong hash!" }
-            streamer.writer().use { stream ->
-                write(
-                    stream = stream,
-                    deleted = deleted,
-                    payloads = payloads,
-                    transformer = transformer,
-                )
-            }
-            return true
         }
     }
 }

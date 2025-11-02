@@ -119,12 +119,11 @@ class RealSyncStorages private constructor(
     override fun commit(commitStates: Map<UUID, CommitState>): Set<UUID> {
         val result = mutableSetOf<UUID>()
         for ((id, commitState) in commitStates) {
-            val transformer = holders.firstOrNull { it.id == id }?.transformer ?: error("No storage by ID: \"$id\"!")
+            if (holders.none { it.id == id }) error("No storage by ID: \"$id\"!")
             val src = dir.resolve(id.toString())
-            val commited = SyncStorage.commit(
+            val commited = SyncStorageAlgorithms.commit(
                 streamer = MutableFileStreamer(src = src),
                 hashes = hashes,
-                transformer = transformer,
                 commitState = commitState,
             )
             if (commited) result.add(id)
