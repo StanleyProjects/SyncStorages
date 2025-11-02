@@ -122,19 +122,35 @@ internal class SyncStorage<T : Any>(
     }
 
     override fun update(id: UUID, value: T): Duration? {
-        val payloads = payloads.toMutableList()
-        for (index in payloads.indices) {
-            val it = payloads[index]
+        val deleted = HashSet<UUID>()
+        val locals = ArrayList<Payload<ByteArray>>()
+        streamer.reader().use { stream ->
+            (0 until stream.readInt()).forEach { _ ->
+                deleted.add(stream.readUUID())
+            }
+            (0 until stream.readInt()).forEach { _ ->
+                locals.add(readPayload(stream = stream))
+            }
+        }
+        for (index in locals.indices) {
+            val it = locals[index]
             if (it.id == id) {
-                payloads.removeAt(index)
-                val payload = Payload(
+                locals.removeAt(index)
+                val updated = times.now()
+                locals += Payload(
                     id = it.id,
                     created = it.created,
-                    updated = times.now(),
-                    value = value,
+                    updated = updated,
+                    value = transformer.encode(value),
                 )
-                write(payloads = payloads + payload)
-                return payload.updated
+                streamer.writer().use { stream ->
+                    SyncStorageAlgorithms.write(
+                        stream = stream,
+                        deleted = deleted,
+                        payloads = locals,
+                    )
+                }
+                return updated
             }
         }
         return null

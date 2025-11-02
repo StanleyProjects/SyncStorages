@@ -1,6 +1,7 @@
 package sp.kx.storages
 
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -62,14 +63,18 @@ internal class MutableStorageTest {
         val testSuite = SyncStoragesTestSuite(dir = dir)
         val s11 = testSuite.storage<String>(1)
         val p111 = testSuite.add(1, value = "v1")
+        assertEquals(expected = p111, actual = s11.payloads.single())
+        assertNull(testSuite.update(1, id = UUID(1, 0), value = "foo"))
         //
         val updated = testSuite.update(1, id = p111.id, value = "v2")
         checkNotNull(updated)
         val actual = s11[p111.id]
         checkNotNull(actual)
+        assertNotEquals(p111.value, actual.value)
         assertEquals("v2", actual.value)
         assertEquals(p111.id, actual.id)
         assertEquals(p111.created, actual.created)
+        assertTrue(p111.updated <= actual.updated)
         assertEquals(updated, actual.updated)
     }
 }
