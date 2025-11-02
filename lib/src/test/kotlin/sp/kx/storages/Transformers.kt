@@ -16,9 +16,10 @@ internal object Transformers {
 
         fun map(payload: Payload<Int>): Payload<ByteArray> {
             return Payload(
+                id = payload.id,
+                created = payload.created,
+                updated = payload.updated,
                 value = encode(decoded = payload.value),
-                valueInfo = payload.valueInfo,
-                valueState = payload.valueState,
             )
         }
     }
@@ -34,9 +35,10 @@ internal object Transformers {
 
         fun map(payload: Payload<String>): Payload<ByteArray> {
             return Payload(
+                id = payload.id,
+                created = payload.created,
+                updated = payload.updated,
                 value = encode(decoded = payload.value),
-                valueInfo = payload.valueInfo,
-                valueState = payload.valueState,
             )
         }
     }

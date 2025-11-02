@@ -6,6 +6,7 @@ import sp.kx.ids.Ids
 import sp.kx.times.Times
 import java.io.File
 import java.util.UUID
+import kotlin.time.Duration
 
 internal class SyncStoragesTestSuite {
     val hashes: Hashes
@@ -55,45 +56,46 @@ internal class SyncStoragesTestSuite {
     }
 
     fun add(index: Int, value: String): Payload<String> {
-        val storage = require<String>(index = index)
+        val storage = storage<String>(index = index)
         val payload = storage.add(value = value)
         check(payload.value == value)
-        check(payload.valueInfo.created == payload.valueState.updated)
-        check(payload.valueState.hash.contentEquals(hashes.map(Transformers.Strings.encode(value))))
+        check(payload.created == payload.updated)
         return payload
     }
 
     fun add(index: Int, value: Int): Payload<Int> {
-        val storage = require<Int>(index = index)
+        val storage = storage<Int>(index = index)
         val payload = storage.add(value = value)
         check(payload.value == value)
-        check(payload.valueInfo.created == payload.valueState.updated)
-        check(payload.valueState.hash.contentEquals(hashes.map(Transformers.Ints.encode(value))))
+        check(payload.created == payload.updated)
         return payload
     }
 
-    fun update(index: Int, id: UUID, value: String): ValueState? {
-        val storage = require<String>(index = index)
+    fun update(index: Int, id: UUID, value: String): Duration? {
+        val storage = storage<String>(index = index)
         val before = storage[id]
-        val valueState = storage.update(id = id, value = value)
+        val updated = storage.update(id = id, value = value)
         if (before == null) {
-            check(valueState == null)
+            check(updated == null)
             return null
         }
         check(before.value != value)
-        checkNotNull(valueState)
-        check(valueState.updated >= before.valueState.updated)
-        check(!valueState.hash.contentEquals(before.valueState.hash))
-        check(valueState.hash.contentEquals(hashes.map(Transformers.Strings.encode(value))))
+        checkNotNull(updated)
+        check(updated >= before.updated)
         val after = storage[id]
         checkNotNull(after)
+        check(after.id == before.id)
+        check(after.created == before.created)
+        check(after.updated == updated)
         check(after.value == value)
-        check(after.valueInfo == before.valueInfo)
-        check(after.valueState == valueState)
-        return valueState
+        return updated
     }
 
-    inline fun <reified T : Any> require(index: Int): MutableStorage<T> {
-        return stack[index][T::class.java] ?: error("No storage($index/${T::class.java.name})!")
+    fun storages(index: Int): MutableStorages {
+        return stack.getOrElse(index) { error("No storages by index: $index!") }
+    }
+
+    inline fun <reified T : Any> storage(index: Int): MutableStorage<T> {
+        return storages(index = index)[T::class.java] ?: error("No storage($index/${T::class.java.name})!")
     }
 }

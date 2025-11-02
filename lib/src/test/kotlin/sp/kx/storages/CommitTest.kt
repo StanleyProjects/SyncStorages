@@ -9,13 +9,13 @@ internal class CommitTest {
     fun s1CommitTest(@TempDir dir: File) {
         val testSuite = SyncStoragesTestSuite(dir = dir)
         //
-        val s11 = testSuite.require<String>(1)
+        val s11 = testSuite.storage<String>(1)
         val p111 = testSuite.add(1, value = "v1")
-        val s12 = testSuite.require<Int>(1)
+        val s12 = testSuite.storage<Int>(1)
         val p121 = testSuite.add(1, value = 421)
-        val s21 = testSuite.require<String>(2)
+        val s21 = testSuite.storage<String>(2)
         val p211 = testSuite.add(2, value = "v2")
-        val s22 = testSuite.require<Int>(2)
+        val s22 = testSuite.storage<Int>(2)
         val p221 = testSuite.add(2, value = 422)
         //
         val s2SyncStates = testSuite.s2.getSyncStates()
@@ -45,13 +45,13 @@ internal class CommitTest {
     fun s2CommitTest(@TempDir dir: File) {
         val testSuite = SyncStoragesTestSuite(dir = dir)
         //
-        val s11 = testSuite.require<String>(1)
+        val s11 = testSuite.storage<String>(1)
         val p111 = testSuite.add(1, value = "v1")
-        val s12 = testSuite.require<Int>(1)
+        val s12 = testSuite.storage<Int>(1)
         val p121 = testSuite.add(1, value = 421)
-        val s21 = testSuite.require<String>(2)
+        val s21 = testSuite.storage<String>(2)
         val p211 = testSuite.add(2, value = "v2")
-        val s22 = testSuite.require<Int>(2)
+        val s22 = testSuite.storage<Int>(2)
         val p221 = testSuite.add(2, value = 422)
         //
         val s1SyncStates = testSuite.s1.getSyncStates()
