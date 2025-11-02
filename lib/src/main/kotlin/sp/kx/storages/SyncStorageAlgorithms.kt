@@ -25,7 +25,7 @@ internal object SyncStorageAlgorithms {
         )
     }
 
-    fun <T : Any> readPayload(stream: InputStream, id: UUID, transformer: Transformer<T>): Payload<T> {
+    fun <T : Any> readPayload(stream: InputStream, transformer: Transformer<T>, id: UUID): Payload<T> {
         return Payload(
             id = id,
             created = stream.readLong().milliseconds,

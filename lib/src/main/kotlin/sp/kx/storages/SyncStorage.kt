@@ -21,11 +21,10 @@ internal class SyncStorage<T : Any>(
             return streamer.reader().use { stream ->
                 stream.skip((stream.readInt() * 16).toLong()) // deleted
                 (0 until stream.readInt()).map { _ ->
-                    val id = stream.readUUID()
                     SyncStorageAlgorithms.readPayload(
                         stream = stream,
-                        id = id,
                         transformer = transformer,
+                        id = stream.readUUID(),
                     )
                 }
             }
@@ -140,8 +139,8 @@ internal class SyncStorage<T : Any>(
                 }
                 return SyncStorageAlgorithms.readPayload(
                     stream = stream,
-                    id = id,
                     transformer = transformer,
+                    id = id,
                 )
             }
         }
