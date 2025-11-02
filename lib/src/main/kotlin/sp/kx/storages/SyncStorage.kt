@@ -14,6 +14,7 @@ import sp.kx.times.Times
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
 import java.io.OutputStream
+import java.util.HashMap
 import java.util.UUID
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -22,7 +23,6 @@ internal class SyncStorage<T : Any>(
     override val id: UUID,
     private val streamer: MutableStreamer,
     private val transformer: Transformer<T>,
-    private val hashes: Hashes,
     private val times: Times,
     private val ids: Ids,
 ) : MutableStorage<T> {
@@ -221,29 +221,6 @@ internal class SyncStorage<T : Any>(
                 updated = updated,
                 value = transformer.decode(encoded = encoded),
             )
-        }
-
-        fun getSyncState(streamer: Streamer, hashes: Hashes): SyncState {
-            val deleted = HashSet<UUID>()
-            return streamer.reader().use { stream ->
-                (0 until stream.readInt()).forEach { _ ->
-                    deleted.add(stream.readUUID())
-                }
-                val valueStates = (0 until stream.readInt()).associate { _ ->
-                    val id = stream.readUUID()
-                    stream.skip(8) // created
-                    val updated = stream.readLong().milliseconds
-                    val encoded = stream.readBytes(stream.readInt())
-                    id to ValueState(
-                        updated = updated,
-                        hash = hashes.map(encoded),
-                    )
-                }
-                SyncState(
-                    valueStates = valueStates,
-                    deleted = deleted,
-                )
-            }
         }
 
         fun getMergeState(

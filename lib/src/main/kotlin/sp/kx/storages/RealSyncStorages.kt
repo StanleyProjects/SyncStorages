@@ -69,7 +69,6 @@ class RealSyncStorages private constructor(
                 id = holder.id,
                 streamer = MutableFileStreamer(src = src),
                 transformer = holder.transformer as Transformer<T>,
-                hashes = hashes,
                 times = times,
                 ids = ids,
             )
@@ -81,7 +80,7 @@ class RealSyncStorages private constructor(
         val syncStates = mutableMapOf<UUID, SyncState>()
         for (holder in holders) {
             val src = dir.resolve(holder.id.toString())
-            syncStates[holder.id] = SyncStorage.getSyncState(
+            syncStates[holder.id] = SyncStorageAlgorithms.getSyncState(
                 streamer = FileStreamer(delegate = src),
                 hashes = hashes,
             )
