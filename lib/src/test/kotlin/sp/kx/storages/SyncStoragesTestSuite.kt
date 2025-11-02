@@ -6,7 +6,6 @@ import sp.kx.ids.Ids
 import sp.kx.times.Times
 import java.io.File
 import java.util.UUID
-import kotlin.time.Duration
 
 internal class SyncStoragesTestSuite {
     val hashes: Hashes
@@ -71,8 +70,21 @@ internal class SyncStoragesTestSuite {
         return payload
     }
 
-    fun update(index: Int, id: UUID, value: String): Duration? {
-        val storage = storage<String>(index = index)
+    inline fun <reified T : Comparable<T>> delete(index: Int, id: UUID): Boolean {
+        val storage = storage<T>(index = index)
+        val before = storage[id]
+        val deleted = storage.delete(id = id)
+        if (before == null) {
+            check(!deleted)
+            return false
+        }
+        check(deleted)
+        check(storage.payloads.none { it.id == before.id })
+        return true
+    }
+
+    inline fun <reified T : Comparable<T>> update(index: Int, id: UUID, value: T): Payload<T>? {
+        val storage = storage<T>(index = index)
         val before = storage[id]
         val updated = storage.update(id = id, value = value)
         if (before == null) {
@@ -88,7 +100,7 @@ internal class SyncStoragesTestSuite {
         check(after.created == before.created)
         check(after.updated == updated)
         check(after.value == value)
-        return updated
+        return after
     }
 
     fun storages(index: Int): MutableStorages {

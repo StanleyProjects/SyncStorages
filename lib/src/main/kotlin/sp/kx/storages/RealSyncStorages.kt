@@ -69,7 +69,6 @@ class RealSyncStorages private constructor(
                 id = holder.id,
                 streamer = MutableFileStreamer(src = src),
                 transformer = holder.transformer as Transformer<T>,
-                hashes = hashes,
                 times = times,
                 ids = ids,
             )
@@ -81,7 +80,7 @@ class RealSyncStorages private constructor(
         val syncStates = mutableMapOf<UUID, SyncState>()
         for (holder in holders) {
             val src = dir.resolve(holder.id.toString())
-            syncStates[holder.id] = SyncStorage.getSyncState(
+            syncStates[holder.id] = SyncStorageAlgorithms.getSyncState(
                 streamer = FileStreamer(delegate = src),
                 hashes = hashes,
             )
@@ -94,7 +93,7 @@ class RealSyncStorages private constructor(
         for ((id, syncState) in syncStates) {
             if (holders.none { it.id == id }) error("No storage by ID: \"$id\"!")
             val src = dir.resolve(id.toString())
-            mergeStates[id] = SyncStorage.getMergeState(
+            mergeStates[id] = SyncStorageAlgorithms.getMergeState(
                 streamer = FileStreamer(delegate = src),
                 hashes = hashes,
                 syncState = syncState,
@@ -106,12 +105,11 @@ class RealSyncStorages private constructor(
     override fun merge(mergeStates: Map<UUID, MergeState>): Map<UUID, CommitState> {
         val commitStates = mutableMapOf<UUID, CommitState>()
         for ((id, mergeState) in mergeStates) {
-            val transformer = holders.firstOrNull { it.id == id }?.transformer ?: error("No storage by ID: \"$id\"!")
+            if (holders.none { it.id == id }) error("No storage by ID: \"$id\"!")
             val src = dir.resolve(id.toString())
-            commitStates[id] = SyncStorage.merge(
+            commitStates[id] = SyncStorageAlgorithms.merge(
                 streamer = MutableFileStreamer(src = src),
                 hashes = hashes,
-                transformer = transformer,
                 mergeState = mergeState,
             )
         }
@@ -121,12 +119,11 @@ class RealSyncStorages private constructor(
     override fun commit(commitStates: Map<UUID, CommitState>): Set<UUID> {
         val result = mutableSetOf<UUID>()
         for ((id, commitState) in commitStates) {
-            val transformer = holders.firstOrNull { it.id == id }?.transformer ?: error("No storage by ID: \"$id\"!")
+            if (holders.none { it.id == id }) error("No storage by ID: \"$id\"!")
             val src = dir.resolve(id.toString())
-            val commited = SyncStorage.commit(
+            val commited = SyncStorageAlgorithms.commit(
                 streamer = MutableFileStreamer(src = src),
                 hashes = hashes,
-                transformer = transformer,
                 commitState = commitState,
             )
             if (commited) result.add(id)
