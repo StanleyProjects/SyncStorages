@@ -46,6 +46,7 @@ internal class MutableStorageTest {
         val value = "v1"
         val p111 = testSuite.add(1, value = value)
         assertEquals(value, p111.value)
+        assertEquals(expected = p111, actual = s11.payloads.single())
         //
         val actual = s11[p111.id]
         checkNotNull(actual)
@@ -53,6 +54,7 @@ internal class MutableStorageTest {
         //
         assertTrue(s11.delete(p111.id))
         assertNull(s11[p111.id])
+        assertTrue(s11.payloads.isEmpty())
     }
 
     @Test

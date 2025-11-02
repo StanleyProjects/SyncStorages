@@ -93,12 +93,28 @@ internal class SyncStorage<T : Any>(
     }
 
     override fun delete(id: UUID): Boolean {
-        val payloads = payloads.toMutableList()
-        for (index in payloads.indices) {
-            val it = payloads[index]
+        val deleted = HashSet<UUID>()
+        val locals = ArrayList<Payload<ByteArray>>()
+        streamer.reader().use { stream ->
+            (0 until stream.readInt()).forEach { _ ->
+                deleted.add(stream.readUUID())
+            }
+            (0 until stream.readInt()).forEach { _ ->
+                locals.add(readPayload(stream = stream))
+            }
+        }
+        for (index in locals.indices) {
+            val it = locals[index]
             if (it.id == id) {
-                payloads.removeAt(index)
-                write(deleted = deleted + id, payloads = payloads)
+                locals.removeAt(index)
+                deleted.add(id)
+                streamer.writer().use { stream ->
+                    SyncStorageAlgorithms.write(
+                        stream = stream,
+                        deleted = deleted,
+                        payloads = locals,
+                    )
+                }
                 return true
             }
         }
