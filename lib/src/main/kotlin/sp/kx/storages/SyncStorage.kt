@@ -44,7 +44,7 @@ internal class SyncStorage<T : Any>(
                 deleted.add(stream.readUUID())
             }
             (0 until stream.readInt()).forEach { _ ->
-                locals.add(readPayload(stream = stream))
+                locals.add(SyncStorageAlgorithms.readPayload(stream = stream))
             }
         }
         val id = ids.random()
@@ -78,7 +78,7 @@ internal class SyncStorage<T : Any>(
                 deleted.add(stream.readUUID())
             }
             (0 until stream.readInt()).forEach { _ ->
-                locals.add(readPayload(stream = stream))
+                locals.add(SyncStorageAlgorithms.readPayload(stream = stream))
             }
         }
         for (index in locals.indices) {
@@ -107,7 +107,7 @@ internal class SyncStorage<T : Any>(
                 deleted.add(stream.readUUID())
             }
             (0 until stream.readInt()).forEach { _ ->
-                locals.add(readPayload(stream = stream))
+                locals.add(SyncStorageAlgorithms.readPayload(stream = stream))
             }
         }
         for (index in locals.indices) {
@@ -197,19 +197,6 @@ internal class SyncStorage<T : Any>(
             }
         }
 
-        private fun readPayload(stream: InputStream): Payload<ByteArray> {
-            val id = stream.readUUID()
-            val created = stream.readLong().milliseconds
-            val updated = stream.readLong().milliseconds
-            val encoded = stream.readBytes(stream.readInt())
-            return Payload(
-                id = id,
-                created = created,
-                updated = updated,
-                value = encoded,
-            )
-        }
-
         private fun <T : Any> readPayload(stream: InputStream, transformer: Transformer<T>): Payload<T> {
             val id = stream.readUUID()
             val created = stream.readLong().milliseconds
@@ -220,46 +207,6 @@ internal class SyncStorage<T : Any>(
                 created = created,
                 updated = updated,
                 value = transformer.decode(encoded = encoded),
-            )
-        }
-
-        fun getMergeState(
-            streamer: Streamer,
-            hashes: Hashes,
-            syncState: SyncState,
-        ): MergeState {
-            val deleted = HashSet<UUID>()
-            val locals = ArrayList<Payload<ByteArray>>()
-            streamer.reader().use { stream ->
-                (0 until stream.readInt()).forEach { _ ->
-                    deleted.add(stream.readUUID())
-                }
-                (0 until stream.readInt()).forEach { _ ->
-                    locals.add(readPayload(stream = stream))
-                }
-            }
-            val picks = HashSet<UUID>()
-            val gives = mutableListOf<Payload<ByteArray>>()
-            for (payload in locals) {
-                if (syncState.valueStates.containsKey(payload.id)) continue
-                if (syncState.deleted.contains(payload.id)) continue
-                gives.add(payload)
-            }
-            for ((id, valueState) in syncState.valueStates) {
-                val payload = locals.firstOrNull { it.id == id }
-                if (payload == null) {
-                    if (deleted.contains(id)) continue
-                    picks.add(id)
-                } else if (valueState.updated > payload.updated) {
-                    picks.add(id)
-                } else if (!valueState.hash.contentEquals(hashes.map(payload.value))) {
-                    gives.add(payload)
-                }
-            }
-            return MergeState(
-                deleted = deleted,
-                picks = picks,
-                gives = gives,
             )
         }
 
@@ -276,7 +223,7 @@ internal class SyncStorage<T : Any>(
                     deleted.add(stream.readUUID())
                 }
                 (0 until stream.readInt()).forEach { _ ->
-                    locals.add(readPayload(stream = stream))
+                    locals.add(SyncStorageAlgorithms.readPayload(stream = stream))
                 }
             }
             val payloads = mutableListOf<Payload<T>>()

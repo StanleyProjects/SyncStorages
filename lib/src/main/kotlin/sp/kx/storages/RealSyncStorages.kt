@@ -93,7 +93,7 @@ class RealSyncStorages private constructor(
         for ((id, syncState) in syncStates) {
             if (holders.none { it.id == id }) error("No storage by ID: \"$id\"!")
             val src = dir.resolve(id.toString())
-            mergeStates[id] = SyncStorage.getMergeState(
+            mergeStates[id] = SyncStorageAlgorithms.getMergeState(
                 streamer = FileStreamer(delegate = src),
                 hashes = hashes,
                 syncState = syncState,

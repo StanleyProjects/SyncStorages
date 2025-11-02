@@ -7,11 +7,21 @@ import sp.kx.bytes.readUUID
 import sp.kx.bytes.writeBytes
 import sp.kx.hashes.Hashes
 import sp.kx.streamers.Streamer
+import java.io.InputStream
 import java.io.OutputStream
 import java.util.UUID
 import kotlin.time.Duration.Companion.milliseconds
 
 internal object SyncStorageAlgorithms {
+    fun readPayload(stream: InputStream): Payload<ByteArray> {
+        return Payload(
+            id = stream.readUUID(),
+            created = stream.readLong().milliseconds,
+            updated = stream.readLong().milliseconds,
+            value = stream.readBytes(stream.readInt()),
+        )
+    }
+
     fun write(
         stream: OutputStream,
         deleted: Set<UUID>,
@@ -29,7 +39,10 @@ internal object SyncStorageAlgorithms {
         }
     }
 
-    fun getSyncState(streamer: Streamer, hashes: Hashes): SyncState {
+    fun getSyncState(
+        streamer: Streamer,
+        hashes: Hashes,
+    ): SyncState {
         val deleted = HashSet<UUID>()
         val valueStates = HashMap<UUID, ValueState>()
         streamer.reader().use { stream ->
@@ -50,6 +63,46 @@ internal object SyncStorageAlgorithms {
         return SyncState(
             deleted = deleted,
             valueStates = valueStates,
+        )
+    }
+
+    fun getMergeState(
+        streamer: Streamer,
+        hashes: Hashes,
+        syncState: SyncState,
+    ): MergeState {
+        val deleted = HashSet<UUID>()
+        val locals = ArrayList<Payload<ByteArray>>()
+        streamer.reader().use { stream ->
+            (0 until stream.readInt()).forEach { _ ->
+                deleted.add(stream.readUUID())
+            }
+            (0 until stream.readInt()).forEach { _ ->
+                locals.add(readPayload(stream = stream))
+            }
+        }
+        val picks = HashSet<UUID>()
+        val gives = ArrayList<Payload<ByteArray>>()
+        for (payload in locals) {
+            if (syncState.valueStates.containsKey(payload.id)) continue
+            if (syncState.deleted.contains(payload.id)) continue
+            gives.add(payload)
+        }
+        for ((id, valueState) in syncState.valueStates) {
+            val payload = locals.firstOrNull { it.id == id }
+            if (payload == null) {
+                if (deleted.contains(id)) continue
+                picks.add(id)
+            } else if (valueState.updated > payload.updated) {
+                picks.add(id)
+            } else if (!valueState.hash.contentEquals(hashes.map(payload.value))) {
+                gives.add(payload)
+            }
+        }
+        return MergeState(
+            deleted = deleted,
+            picks = picks,
+            gives = gives,
         )
     }
 }
