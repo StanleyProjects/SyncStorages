@@ -1,21 +1,13 @@
 package sp.kx.storages
 
 import sp.kx.bytes.Transformer
-import sp.kx.bytes.readBytes
 import sp.kx.bytes.readInt
-import sp.kx.bytes.readLong
 import sp.kx.bytes.readUUID
-import sp.kx.bytes.writeBytes
-import sp.kx.hashes.Hashes
 import sp.kx.ids.Ids
 import sp.kx.streamers.MutableStreamer
 import sp.kx.times.Times
-import java.io.ByteArrayOutputStream
-import java.io.InputStream
-import java.io.OutputStream
 import java.util.UUID
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
 
 internal class SyncStorage<T : Any>(
     override val id: UUID,
@@ -29,7 +21,12 @@ internal class SyncStorage<T : Any>(
             return streamer.reader().use { stream ->
                 stream.skip((stream.readInt() * 16).toLong()) // deleted
                 (0 until stream.readInt()).map { _ ->
-                    readPayload(stream = stream, transformer = transformer)
+                    val id = stream.readUUID()
+                    SyncStorageAlgorithms.readPayload(
+                        stream = stream,
+                        id = id,
+                        transformer = transformer,
+                    )
                 }
             }
         }
@@ -141,32 +138,13 @@ internal class SyncStorage<T : Any>(
                     stream.skip(stream.readInt().toLong())
                     continue
                 }
-                val created = stream.readLong().milliseconds
-                val updated = stream.readLong().milliseconds
-                val encoded = stream.readBytes(stream.readInt())
-                return Payload(
+                return SyncStorageAlgorithms.readPayload(
+                    stream = stream,
                     id = id,
-                    created = created,
-                    updated = updated,
-                    value = transformer.decode(encoded = encoded),
+                    transformer = transformer,
                 )
             }
         }
         return null
-    }
-
-    companion object {
-        private fun <T : Any> readPayload(stream: InputStream, transformer: Transformer<T>): Payload<T> {
-            val id = stream.readUUID()
-            val created = stream.readLong().milliseconds
-            val updated = stream.readLong().milliseconds
-            val encoded = stream.readBytes(stream.readInt())
-            return Payload(
-                id = id,
-                created = created,
-                updated = updated,
-                value = transformer.decode(encoded = encoded),
-            )
-        }
     }
 }

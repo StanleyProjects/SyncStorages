@@ -1,5 +1,6 @@
 package sp.kx.storages
 
+import sp.kx.bytes.Transformer
 import sp.kx.bytes.readBytes
 import sp.kx.bytes.readInt
 import sp.kx.bytes.readLong
@@ -21,6 +22,15 @@ internal object SyncStorageAlgorithms {
             created = stream.readLong().milliseconds,
             updated = stream.readLong().milliseconds,
             value = stream.readBytes(stream.readInt()),
+        )
+    }
+
+    fun <T : Any> readPayload(stream: InputStream, id: UUID, transformer: Transformer<T>): Payload<T> {
+        return Payload(
+            id = id,
+            created = stream.readLong().milliseconds,
+            updated = stream.readLong().milliseconds,
+            value = transformer.decode(stream.readBytes(stream.readInt())),
         )
     }
 
