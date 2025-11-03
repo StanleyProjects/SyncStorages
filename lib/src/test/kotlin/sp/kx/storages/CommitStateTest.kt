@@ -1,100 +1,42 @@
 package sp.kx.storages
 
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.io.TempDir
-import java.io.File
-import java.util.HexFormat
+import java.util.UUID
+import kotlin.time.Duration.Companion.milliseconds
 
 internal class CommitStateTest {
     @Test
-    fun s1MergeTest(@TempDir dir: File) {
-        val testSuite = SyncStoragesTestSuite(dir = dir)
-        //
-        val s11 = testSuite.storage<String>(1)
-        val p111 = testSuite.add(1, value = "v1")
-        val s12 = testSuite.storage<Int>(1)
-        val p121 = testSuite.add(1, value = 421)
-        val s21 = testSuite.storage<String>(2)
-        val p211 = testSuite.add(2, value = "v2")
-        val s22 = testSuite.storage<Int>(2)
-        val p221 = testSuite.add(2, value = 422)
-        //
-        val s2MergeStates = testSuite.s2.getMergeStates(testSuite.s1.getSyncStates())
-        assertEquals(expected = p111, actual = s11.payloads.single())
-        assertEquals(expected = p121, actual = s12.payloads.single())
-        val s1CommitStates = testSuite.s1.merge(mergeStates = s2MergeStates)
-        assertEquals(
-            expected = listOf(p111, p211),
-            actual = s11.payloads,
-            comparator = Comparators.payloads,
-            assert = { _, expected, actual -> assertEquals(expected = expected, actual = actual) },
+    fun toStringTest() {
+        val payload = Payload(
+            id = UUID(1, 0),
+            created = 1.milliseconds,
+            updated = 2.milliseconds,
+            value = byteArrayOf(4, 3, 2, 1)
         )
-        assertEquals(
-            expected = listOf(p121, p221),
-            actual = s12.payloads,
-            comparator = Comparators.payloads,
-            assert = { _, expected, actual -> assertEquals(expected = expected, actual = actual) },
+        val issuer = CommitState(
+            deleted = setOf(UUID(2, 0)),
+            gives = listOf(payload),
+            hash = byteArrayOf(4, 2)
         )
-        //
-        assertEquals(
-            expected = mapOf(
-                s11.id to mockCommitState(
-                    gives = listOf(Transformers.Strings.map(p111)),
-                    hash = HexFormat.of().parseHex("eb2f674ab7b27393553bca2c80107885"),
-                ),
-                s12.id to mockCommitState(
-                    gives = listOf(Transformers.Ints.map(p121)),
-                    hash = HexFormat.of().parseHex("cce52eca8417a422e02f16e4ca85bd4e"),
-                ),
-            ),
-            actual = s1CommitStates,
-            assert = { _, expected, actual -> expected.assertEquals(actual = actual) },
-        )
+        val expected = "CommitState(deleted: [00000000-0000-0002-0000-000000000000], gives: 1, hash: 2)"
+        assertEquals(expected, issuer.toString())
     }
 
     @Test
-    fun s2MergeTest(@TempDir dir: File) {
-        val testSuite = SyncStoragesTestSuite(dir = dir)
-        //
-        val s11 = testSuite.storage<String>(1)
-        val p111 = testSuite.add(1, value = "v1")
-        val s12 = testSuite.storage<Int>(1)
-        val p121 = testSuite.add(1, value = 421)
-        val s21 = testSuite.storage<String>(2)
-        val p211 = testSuite.add(2, value = "v2")
-        val s22 = testSuite.storage<Int>(2)
-        val p221 = testSuite.add(2, value = 422)
-        //
-        val s1MergeStates = testSuite.s1.getMergeStates(testSuite.s2.getSyncStates())
-        assertEquals(expected = p211, actual = s21.payloads.single())
-        assertEquals(expected = p221, actual = s22.payloads.single())
-        val s2CommitStates = testSuite.s2.merge(mergeStates = s1MergeStates)
-        assertEquals(
-            expected = listOf(p111, p211),
-            actual = s21.payloads,
-            comparator = Comparators.payloads,
-            assert = { _, expected, actual -> assertEquals(expected = expected, actual = actual) },
+    fun hashCodeTest() {
+        val payload = Payload(
+            id = UUID(1, 0),
+            created = 1.milliseconds,
+            updated = 2.milliseconds,
+            value = byteArrayOf(4, 3, 2, 1)
         )
-        assertEquals(
-            expected = listOf(p121, p221),
-            actual = s22.payloads,
-            comparator = Comparators.payloads,
-            assert = { _, expected, actual -> assertEquals(expected = expected, actual = actual) },
+        val issuer = CommitState(
+            deleted = setOf(UUID(2, 0)),
+            gives = listOf(payload),
+            hash = byteArrayOf(4, 2)
         )
-        //
-        assertEquals(
-            expected = mapOf(
-                s21.id to mockCommitState(
-                    gives = listOf(Transformers.Strings.map(p211)),
-                    hash = HexFormat.of().parseHex("eb2f674ab7b27393553bca2c80107885"),
-                ),
-                s22.id to mockCommitState(
-                    gives = listOf(Transformers.Ints.map(p221)),
-                    hash = HexFormat.of().parseHex("cce52eca8417a422e02f16e4ca85bd4e"),
-                ),
-            ),
-            actual = s2CommitStates,
-            assert = { _, expected, actual -> expected.assertEquals(actual = actual) },
-        )
+        val expected = -936478655
+        assertEquals(expected, issuer.hashCode())
     }
 }
