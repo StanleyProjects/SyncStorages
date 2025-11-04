@@ -162,9 +162,7 @@ internal class CommitTest {
         val u222 = testSuite.update(1, p222.id, 42221) ?: TODO()
         val p229 = testSuite.add(2, 42290)
         //
-        val s2SyncStates = testSuite.s2.getSyncStates()
-        val s1MergeStates = testSuite.s1.getMergeStates(s2SyncStates)
-        val s2CommitStates = testSuite.s2.merge(s1MergeStates)
+        val s2CommitStates = testSuite.s2.merge(testSuite.s1.getMergeStates(testSuite.s2.getSyncStates()))
         assertEquals(
             expected = mapOf(
                 s21.id to mockCommitState(
@@ -181,9 +179,8 @@ internal class CommitTest {
             actual = s2CommitStates,
             assert = { _, expected, actual -> expected.assertEquals(actual = actual) },
         )
-        TODO("CommitTest:commitTest($dir)")
         val commited = testSuite.s1.commit(s2CommitStates)
-        TODO("CommitTest:commitTest(commited: $commited)")
+        assertEquals(expected = setOf(s21.id, s22.id), actual = commited)
         assertEquals(
             expected = listOf(u112, p113, p119, u212, p213, p219),
             actual = s11.payloads,
