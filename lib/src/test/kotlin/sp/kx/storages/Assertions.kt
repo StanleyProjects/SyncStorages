@@ -41,9 +41,9 @@ internal fun <K : Comparable<K>, V : Any> assertEquals(
 }
 
 internal fun Payload<ByteArray>.assertEquals(actual: Payload<ByteArray>, message: String) {
-    assertEquals(id, actual.id)
-    assertEquals(created, actual.created)
-    assertEquals(updated, actual.updated)
+    assertEquals(id, actual.id, "Payload:id")
+    assertEquals(created, actual.created, "Payload:created")
+    assertEquals(updated, actual.updated, "Payload:updated")
     assertEquals(value.size, actual.value.size, message)
     assertTrue(value.contentEquals(actual.value), message)
 }
