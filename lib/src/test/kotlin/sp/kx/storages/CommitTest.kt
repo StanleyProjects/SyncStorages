@@ -151,38 +151,59 @@ internal class CommitTest {
         //
         assertTrue(testSuite.delete<String>(1, p111.id))
         val u112 = testSuite.update(1, p112.id, "p111:updated") ?: TODO()
-        val p114 = testSuite.add(1, "p114")
+        val p119 = testSuite.add(1, "p119")
         assertTrue(testSuite.delete<String>(2, p211.id))
         val u212 = testSuite.update(1, p212.id, "p211:updated") ?: TODO()
-        val p214 = testSuite.add(2, "p214")
+        val p219 = testSuite.add(2, "p219")
         assertTrue(testSuite.delete<Int>(1, p121.id))
         val u122 = testSuite.update(1, p122.id, 41221) ?: TODO()
-        val p124 = testSuite.add(1, 41240)
+        val p129 = testSuite.add(1, 41290)
         assertTrue(testSuite.delete<Int>(2, p221.id))
         val u222 = testSuite.update(1, p222.id, 42221) ?: TODO()
-        val p224 = testSuite.add(2, 42240)
+        val p229 = testSuite.add(2, 42290)
         //
-        testSuite.s1.commit(testSuite.s2.merge(testSuite.s1.getMergeStates(testSuite.s2.getSyncStates())))
+        val s2SyncStates = testSuite.s2.getSyncStates()
+        val s1MergeStates = testSuite.s1.getMergeStates(s2SyncStates)
+        val s2CommitStates = testSuite.s2.merge(s1MergeStates)
         assertEquals(
-            expected = listOf(u112, p113, p114, u212, p213, p214),
+            expected = mapOf(
+                s21.id to mockCommitState(
+                    deleted = setOf(p111.id, p211.id),
+                    gives = listOf(p219).map(Transformers.Strings::map),
+                    hash = testSuite.hashOf(payloads = listOf(u112, p113, p119, u212, p213, p219).map(Transformers.Strings::map)),
+                ),
+                s22.id to mockCommitState(
+                    deleted = setOf(p121.id, p221.id),
+                    gives = listOf(p229).map(Transformers.Ints::map),
+                    hash = testSuite.hashOf(payloads = listOf(u122, p123, p129, u222, p223, p229).map(Transformers.Ints::map)),
+                ),
+            ),
+            actual = s2CommitStates,
+            assert = { _, expected, actual -> expected.assertEquals(actual = actual) },
+        )
+        TODO("CommitTest:commitTest($dir)")
+        val commited = testSuite.s1.commit(s2CommitStates)
+        TODO("CommitTest:commitTest(commited: $commited)")
+        assertEquals(
+            expected = listOf(u112, p113, p119, u212, p213, p219),
             actual = s11.payloads,
             comparator = Comparators.payloads,
             assert = { _, expected, actual -> assertEquals(expected = expected, actual = actual) },
         )
         assertEquals(
-            expected = listOf(u122, p123, p124, u222, p223, p224),
+            expected = listOf(u122, p123, p129, u222, p223, p229),
             actual = s12.payloads,
             comparator = Comparators.payloads,
             assert = { _, expected, actual -> assertEquals(expected = expected, actual = actual) },
         )
         assertEquals(
-            expected = listOf(u112, p113, p114, u212, p213, p214),
+            expected = listOf(u112, p113, p119, u212, p213, p219),
             actual = s21.payloads,
             comparator = Comparators.payloads,
             assert = { _, expected, actual -> assertEquals(expected = expected, actual = actual) },
         )
         assertEquals(
-            expected = listOf(u122, p123, p124, u222, p223, p224),
+            expected = listOf(u122, p123, p129, u222, p223, p229),
             actual = s22.payloads,
             comparator = Comparators.payloads,
             assert = { _, expected, actual -> assertEquals(expected = expected, actual = actual) },

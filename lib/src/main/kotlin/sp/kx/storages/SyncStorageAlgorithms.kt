@@ -51,13 +51,16 @@ internal object SyncStorageAlgorithms {
         }
     }
 
-    private fun bytesOf(payloads: List<Payload<ByteArray>>, hashes: Hashes): ByteArray {
-        return ByteArrayOutputStream().use { stream ->
-            payloads.forEach { payload ->
+    internal fun hashOf(payloads: List<Payload<ByteArray>>, hashes: Hashes): ByteArray {
+        if (payloads.isEmpty()) return hashes.map(ByteArray(0))
+        return payloads.fold(ByteArray(0)) { acc, payload ->
+            val bytes = ByteArrayOutputStream().use { stream ->
+                stream.writeBytes(acc)
                 stream.writeBytes(payload.id)
                 stream.writeBytes(hashes.map(payload.value))
+                stream.toByteArray()
             }
-            stream.toByteArray()
+            hashes.map(bytes)
         }
     }
 
@@ -164,7 +167,7 @@ internal object SyncStorageAlgorithms {
             )
         }
         return CommitState(
-            hash = hashes.map(bytesOf(payloads = payloads, hashes = hashes)),
+            hash = hashOf(payloads = payloads, hashes = hashes),
             gives = gives,
             deleted = deleted,
         )
@@ -195,7 +198,7 @@ internal object SyncStorageAlgorithms {
         payloads.addAll(commitState.gives)
         payloads.sortWith(Comparators.payloads)
         deleted.addAll(commitState.deleted)
-        val hash = hashes.map(bytesOf(payloads = payloads, hashes = hashes))
+        val hash = hashOf(payloads = payloads, hashes = hashes)
         check(hash.contentEquals(commitState.hash)) { "Wrong hash!" }
         streamer.writer().use { stream ->
             write(

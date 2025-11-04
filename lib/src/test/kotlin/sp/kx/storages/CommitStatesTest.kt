@@ -40,11 +40,11 @@ internal class CommitStatesTest {
             expected = mapOf(
                 s11.id to mockCommitState(
                     gives = listOf(Transformers.Strings.map(p111)),
-                    hash = HexFormat.of().parseHex("eb2f674ab7b27393553bca2c80107885"),
+                    hash = testSuite.hashOf(payloads = listOf(p111, p211).map(Transformers.Strings::map)),
                 ),
                 s12.id to mockCommitState(
                     gives = listOf(Transformers.Ints.map(p121)),
-                    hash = HexFormat.of().parseHex("cce52eca8417a422e02f16e4ca85bd4e"),
+                    hash = testSuite.hashOf(payloads = listOf(p121, p221).map(Transformers.Ints::map)),
                 ),
             ),
             actual = s1CommitStates,
@@ -86,11 +86,11 @@ internal class CommitStatesTest {
             expected = mapOf(
                 s21.id to mockCommitState(
                     gives = listOf(Transformers.Strings.map(p211)),
-                    hash = HexFormat.of().parseHex("eb2f674ab7b27393553bca2c80107885"),
+                    hash = testSuite.hashOf(payloads = listOf(p111, p211).map(Transformers.Strings::map)),
                 ),
                 s22.id to mockCommitState(
                     gives = listOf(Transformers.Ints.map(p221)),
-                    hash = HexFormat.of().parseHex("cce52eca8417a422e02f16e4ca85bd4e"),
+                    hash = testSuite.hashOf(payloads = listOf(p121, p221).map(Transformers.Ints::map)),
                 ),
             ),
             actual = s2CommitStates,

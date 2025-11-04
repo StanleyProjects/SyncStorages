@@ -54,6 +54,10 @@ internal class SyncStoragesTestSuite {
         return hashes.map(Transformers.Ints.encode(value))
     }
 
+    fun hashOf(payloads: List<Payload<ByteArray>>): ByteArray {
+        return SyncStorageAlgorithms.hashOf(payloads = payloads.sortedWith(Comparators.payloads), hashes = hashes)
+    }
+
     fun add(index: Int, value: String): Payload<String> {
         val storage = storage<String>(index = index)
         val payload = storage.add(value = value)
