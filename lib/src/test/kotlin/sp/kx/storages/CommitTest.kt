@@ -202,6 +202,128 @@ internal class CommitTest {
     }
 
     @Test
+    fun updateTest(@TempDir dir: File) {
+        val testSuite = SyncStoragesTestSuite(dir = dir)
+        //
+        val s11 = testSuite.storage<String>(1)
+        val p111 = testSuite.add(1, value = "p111")
+        val p112 = testSuite.add(1, value = "p112")
+        val s12 = testSuite.storage<Int>(1)
+        val p121 = testSuite.add(1, value = 41210)
+        val p122 = testSuite.add(1, value = 41220)
+        val s21 = testSuite.storage<String>(2)
+        val p211 = testSuite.add(2, value = "p211")
+        val p212 = testSuite.add(2, value = "p212")
+        val s22 = testSuite.storage<Int>(2)
+        val p221 = testSuite.add(2, value = 42210)
+        val p222 = testSuite.add(2, value = 42220)
+        //
+        assertEquals(
+            expected = listOf(p111, p112),
+            actual = s11.payloads,
+            comparator = Comparators.payloads,
+            assert = { _, expected, actual -> assertEquals(expected = expected, actual = actual) },
+        )
+        assertEquals(
+            expected = listOf(p121, p122),
+            actual = s12.payloads,
+            comparator = Comparators.payloads,
+            assert = { _, expected, actual -> assertEquals(expected = expected, actual = actual) },
+        )
+        assertEquals(
+            expected = listOf(p211, p212),
+            actual = s21.payloads,
+            comparator = Comparators.payloads,
+            assert = { _, expected, actual -> assertEquals(expected = expected, actual = actual) },
+        )
+        assertEquals(
+            expected = listOf(p221, p222),
+            actual = s22.payloads,
+            comparator = Comparators.payloads,
+            assert = { _, expected, actual -> assertEquals(expected = expected, actual = actual) },
+        )
+        assertEquals(
+            expected = setOf(s11.id, s12.id),
+            actual = testSuite.s1.commit(
+                commitStates = testSuite.s2.merge(
+                    mergeStates = testSuite.s1.getMergeStates(testSuite.s2.getSyncStates()),
+                ),
+            ),
+        )
+        //
+        assertEquals(
+            expected = listOf(p111, p112, p211, p212),
+            actual = s11.payloads,
+            comparator = Comparators.payloads,
+            assert = { _, expected, actual -> assertEquals(expected = expected, actual = actual) },
+        )
+        assertEquals(
+            expected = listOf(p121, p122, p221, p222),
+            actual = s12.payloads,
+            comparator = Comparators.payloads,
+            assert = { _, expected, actual -> assertEquals(expected = expected, actual = actual) },
+        )
+        assertEquals(
+            expected = listOf(p111, p112, p211, p212),
+            actual = s21.payloads,
+            comparator = Comparators.payloads,
+            assert = { _, expected, actual -> assertEquals(expected = expected, actual = actual) },
+        )
+        assertEquals(
+            expected = listOf(p121, p122, p221, p222),
+            actual = s22.payloads,
+            comparator = Comparators.payloads,
+            assert = { _, expected, actual -> assertEquals(expected = expected, actual = actual) },
+        )
+        //
+        val u112 = testSuite.update(1, p112.id, "p112:updated") ?: TODO()
+        val u212 = testSuite.update(2, p212.id, "p212:updated") ?: TODO()
+        val u122 = testSuite.update(1, p122.id, 41221) ?: TODO()
+        val u222 = testSuite.update(2, p222.id, 42221) ?: TODO()
+        //
+        val s2CommitStates = testSuite.s2.merge(testSuite.s1.getMergeStates(testSuite.s2.getSyncStates()))
+        assertEquals(
+            expected = mapOf(
+                s21.id to mockCommitState(
+                    gives = listOf(u212).map(Transformers.Strings::map),
+                    hash = testSuite.hashOf(payloads = listOf(p111, u112, p211, u212).map(Transformers.Strings::map)),
+                ),
+                s22.id to mockCommitState(
+                    gives = listOf(u222).map(Transformers.Ints::map),
+                    hash = testSuite.hashOf(payloads = listOf(p121, u122, p221, u222).map(Transformers.Ints::map)),
+                ),
+            ),
+            actual = s2CommitStates,
+            assert = { _, expected, actual -> expected.assertEquals(actual = actual) },
+        )
+        assertEquals(expected = setOf(s21.id, s22.id), actual = testSuite.s1.commit(s2CommitStates))
+        assertEquals(
+            expected = listOf(p111, u112, p211, u212),
+            actual = s11.payloads,
+            comparator = Comparators.payloads,
+            assert = { _, expected, actual -> assertEquals(expected = expected, actual = actual) },
+        )
+        assertEquals(
+            expected = listOf(p121, u122, p221, u222),
+            actual = s12.payloads,
+            comparator = Comparators.payloads,
+            assert = { _, expected, actual -> assertEquals(expected = expected, actual = actual) },
+        )
+        assertEquals(
+            expected = listOf(p111, u112, p211, u212),
+            actual = s21.payloads,
+            comparator = Comparators.payloads,
+            assert = { _, expected, actual -> assertEquals(expected = expected, actual = actual) },
+        )
+        assertEquals(
+            expected = listOf(p121, u122, p221, u222),
+            actual = s22.payloads,
+            comparator = Comparators.payloads,
+            assert = { _, expected, actual -> assertEquals(expected = expected, actual = actual) },
+        )
+    }
+
+    @Test
     fun commitTest(@TempDir dir: File) {
         val testSuite = SyncStoragesTestSuite(dir = dir)
         //

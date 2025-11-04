@@ -95,6 +95,7 @@ internal fun CommitState.assertEquals(actual: CommitState) {
         actual = actual.gives,
         comparator = Comparators.payloads,
         assert = { index, e, a -> e.assertEquals(actual = a, message = "CommitState:gives[$index]") },
+        message = "CommitState:gives",
     )
     val message = """
         CommitState:hash:
