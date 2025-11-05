@@ -7,6 +7,7 @@ import sp.kx.times.Times
 import java.io.File
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.time.Duration
 
 internal class SyncStoragesTestSuite(
     private val dir: File,
@@ -54,8 +55,8 @@ internal class SyncStoragesTestSuite(
     }
 
     fun <T : Comparable<T>> assertEquals(
-        expected: Collection<Payload<T>>,
         storage: Storage<T>,
+        expected: Collection<Payload<T>>,
     ) {
         assertEquals(
             expected = expected,
@@ -80,5 +81,29 @@ internal class SyncStoragesTestSuite(
 
     fun add(storage: MutableStorage<String>): Payload<String> {
         return add(storage = storage, value = "value:${indices.incrementAndGet()}")
+    }
+
+    fun <T : Comparable<T>> update(storage: MutableStorage<T>, id: UUID, value: T): Duration {
+        val before = storage.payloads
+        val payload = storage[id] ?: error("No payload $id!")
+        val updated = storage.update(id = id, value = value) ?: error("Update error!")
+        check(before.size == storage.payloads.size)
+        val expected = Payload(
+            id = id,
+            created = payload.created,
+            updated = updated,
+            value = value,
+        )
+        check(payload.updated != updated)
+        check(payload.value != value)
+        assertEquals(
+            expected = expected,
+            actual = storage[id] ?: error("No payload $id!"),
+        )
+        return updated
+    }
+
+    fun update(storage: MutableStorage<String>, id: UUID): Duration {
+        return update(storage = storage, id = id, value = "value:${indices.incrementAndGet()}")
     }
 }

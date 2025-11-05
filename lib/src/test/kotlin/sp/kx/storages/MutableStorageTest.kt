@@ -14,10 +14,10 @@ internal class MutableStorageTest {
         val storage = storages[String::class.java] ?: error("No storage!")
         assertEquals(0, storage.payloads.size)
         assertEquals(null, storage[UUID(42, 0)])
-        val payload = testSuite.add(storage)
+        val p0 = testSuite.add(storage)
         assertEquals(null, storage[UUID(42, 0)])
-        val actual = storage[payload.id] ?: error("No payload!")
-        testSuite.assertEquals(expected = payload, actual = actual)
+        val actual = storage[p0.id] ?: error("No payload!")
+        testSuite.assertEquals(expected = p0, actual = actual)
     }
 
     @Test
@@ -32,9 +32,28 @@ internal class MutableStorageTest {
         assertEquals(null, storage[UUID(42, 0)])
         testSuite.assertEquals(expected = p0, actual = storage[p0.id] ?: error("No payload!"))
         val p1 = testSuite.add(storage)
+        testSuite.assertEquals(storage, listOf(p0, p1))
+    }
+
+    @Test
+    fun updateTest(@TempDir dir: File) {
+        val testSuite = SyncStoragesTestSuite(dir = dir)
+        val storages = testSuite.storages(types = setOf(String::class.java))
+        val storage = storages[String::class.java] ?: error("No storage!")
+        assertEquals(0, storage.payloads.size)
+        assertEquals(null, storage[UUID(42, 0)])
+        val p0 = testSuite.add(storage)
+        assertEquals(null, storage.update(UUID(42, 0), "foobarbaz"))
+        val value = "foobarbaz"
+        val updated = testSuite.update(storage = storage, id = p0.id, value = value)
         testSuite.assertEquals(
-            expected = listOf(p0, p1),
-            storage = storage,
+            expected = storage[p0.id] ?: error("No payload!"),
+            actual = Payload(
+                id = p0.id,
+                created = p0.created,
+                updated = updated,
+                value = value,
+            ),
         )
     }
 }
