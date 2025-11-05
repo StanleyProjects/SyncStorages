@@ -83,7 +83,7 @@ internal class SyncStoragesTestSuite(
         return add(storage = storage, value = "value:${indices.incrementAndGet()}")
     }
 
-    fun <T : Comparable<T>> update(storage: MutableStorage<T>, id: UUID, value: T): Duration {
+    fun <T : Comparable<T>> update(storage: MutableStorage<T>, id: UUID, value: T): Payload<T> {
         val before = storage.payloads
         val payload = storage[id] ?: error("No payload $id!")
         val updated = storage.update(id = id, value = value) ?: error("Update error!")
@@ -100,10 +100,21 @@ internal class SyncStoragesTestSuite(
             expected = expected,
             actual = storage[id] ?: error("No payload $id!"),
         )
-        return updated
+        return expected
     }
 
-    fun update(storage: MutableStorage<String>, id: UUID): Duration {
+    fun update(storage: MutableStorage<String>, id: UUID): Payload<String> {
         return update(storage = storage, id = id, value = "value:${indices.incrementAndGet()}")
+    }
+
+    fun <T : Comparable<T>> delete(storage: MutableStorage<T>, id: UUID) {
+        val before = storage.payloads
+        val payload = storage[id] ?: error("No payload $id!")
+        check(storage.delete(id = id))
+        val after = storage.payloads
+        check(before.size == after.size + 1)
+        check(before.count { it.id == payload.id } == 1)
+        check(after.none { it.id == payload.id })
+        check(storage[payload.id] == null)
     }
 }

@@ -12,7 +12,7 @@ internal class MutableStorageTest {
         val testSuite = SyncStoragesTestSuite(dir = dir)
         val storages = testSuite.storages(types = setOf(String::class.java))
         val storage = storages[String::class.java] ?: error("No storage!")
-        assertEquals(0, storage.payloads.size)
+        testSuite.assertEquals(storage, emptyList())
         assertEquals(null, storage[UUID(42, 0)])
         val p0 = testSuite.add(storage)
         assertEquals(null, storage[UUID(42, 0)])
@@ -25,7 +25,7 @@ internal class MutableStorageTest {
         val testSuite = SyncStoragesTestSuite(dir = dir)
         val storages = testSuite.storages(types = setOf(String::class.java))
         val storage = storages[String::class.java] ?: error("No storage!")
-        assertEquals(0, storage.payloads.size)
+        testSuite.assertEquals(storage, emptyList())
         assertEquals(null, storage[UUID(42, 0)])
         val p0 = testSuite.add(storage)
         testSuite.assertEquals(expected = p0, actual = storage.payloads.single())
@@ -40,20 +40,26 @@ internal class MutableStorageTest {
         val testSuite = SyncStoragesTestSuite(dir = dir)
         val storages = testSuite.storages(types = setOf(String::class.java))
         val storage = storages[String::class.java] ?: error("No storage!")
-        assertEquals(0, storage.payloads.size)
+        testSuite.assertEquals(storage, emptyList())
         assertEquals(null, storage[UUID(42, 0)])
         val p0 = testSuite.add(storage)
         assertEquals(null, storage.update(UUID(42, 0), "foobarbaz"))
-        val value = "foobarbaz"
-        val updated = testSuite.update(storage = storage, id = p0.id, value = value)
-        testSuite.assertEquals(
-            expected = storage[p0.id] ?: error("No payload!"),
-            actual = Payload(
-                id = p0.id,
-                created = p0.created,
-                updated = updated,
-                value = value,
-            ),
-        )
+        val expected = testSuite.update(storage = storage, id = p0.id)
+        testSuite.assertEquals(storage, listOf(expected))
+    }
+
+    @Test
+    fun deleteTest(@TempDir dir: File) {
+        val testSuite = SyncStoragesTestSuite(dir = dir)
+        val storages = testSuite.storages(types = setOf(String::class.java))
+        val storage = storages[String::class.java] ?: error("No storage!")
+        testSuite.assertEquals(storage, emptyList())
+        assertEquals(null, storage[UUID(42, 0)])
+        val p0 = testSuite.add(storage = storage)
+        testSuite.assertEquals(storage, listOf(p0))
+        assertEquals(false, storage.delete(id = UUID(42, 0)))
+        testSuite.delete(storage = storage, id = p0.id)
+        assertEquals(null, storage[p0.id])
+        testSuite.assertEquals(storage, emptyList())
     }
 }
