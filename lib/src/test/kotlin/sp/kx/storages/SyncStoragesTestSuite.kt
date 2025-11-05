@@ -14,7 +14,7 @@ internal class SyncStoragesTestSuite(
     private val times: Times = MockTimes(),
     private val ids: Ids = MockIds(),
 ) {
-    private val indices = AtomicInteger()
+    private val indices = AtomicInteger(-1)
 
     fun storages(types: Set<Class<out Comparable<*>>>): SyncStorages {
         val builder = RealSyncStorages.Builder()
@@ -38,5 +38,47 @@ internal class SyncStoragesTestSuite(
         assertEquals(expected.created, actual.created)
         assertEquals(expected.updated, actual.updated)
         assertEquals(expected.value, actual.value)
+    }
+
+    fun <T : Any> assertEquals(
+        expected: Collection<T>,
+        actual: Collection<T>,
+        comparator: Comparator<in T>,
+        assert: (index: Int, expected: T, actual: T) -> Unit,
+    ) {
+        assertEquals(expected.size, actual.size)
+        val sorted = actual.sortedWith(comparator)
+        expected.sortedWith(comparator).forEachIndexed { index, e ->
+            assert(index, e, sorted[index])
+        }
+    }
+
+    fun <T : Comparable<T>> assertEquals(
+        expected: Collection<Payload<T>>,
+        storage: Storage<T>,
+    ) {
+        assertEquals(
+            expected = expected,
+            actual = storage.payloads,
+            comparator = Comparators.payloads,
+            assert = { _, expected, actual -> assertEquals(expected = expected, actual = actual) },
+        )
+    }
+
+    fun <T : Comparable<T>> add(storage: MutableStorage<T>, value: T): Payload<T> {
+        val before = storage.payloads
+        val payload = storage.add(value = value)
+        val after = storage.payloads
+        check(before.size == after.size - 1)
+        check(before.none { it.id == payload.id })
+        assertEquals(expected = payload, actual = after.single { it.id == payload.id })
+        assertEquals(expected = payload, actual = storage[payload.id]!!)
+        check(payload.value == value)
+        check(payload.created == payload.updated)
+        return payload
+    }
+
+    fun add(storage: MutableStorage<String>): Payload<String> {
+        return add(storage = storage, value = "value:${indices.incrementAndGet()}")
     }
 }
