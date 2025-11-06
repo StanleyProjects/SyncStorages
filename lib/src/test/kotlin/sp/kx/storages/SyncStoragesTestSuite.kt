@@ -1,6 +1,7 @@
 package sp.kx.storages
 
 import org.junit.jupiter.api.Assertions.assertEquals
+import sp.kx.bytes.Transformer
 import sp.kx.hashes.Hashes
 import sp.kx.ids.Ids
 import sp.kx.times.Times
@@ -8,6 +9,7 @@ import java.io.File
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 
 internal class SyncStoragesTestSuite(
     private val dir: File,
@@ -20,11 +22,7 @@ internal class SyncStoragesTestSuite(
     fun storages(types: Set<Class<out Comparable<*>>>): SyncStorages {
         val builder = RealSyncStorages.Builder()
         types.forEachIndexed { index, type ->
-            val transformer = when (type) {
-                String::class.java -> Transformers.Strings
-                else -> error("No transformer by $type!")
-            }
-            builder.add(UUID(index.toLong(), 0), type, transformer)
+            builder.add(UUID(index.toLong(), 0), type, Transformers.get(type = type))
         }
         return builder.build(
             dir = dir.resolve("storages_${indices.incrementAndGet()}").also { check(it.mkdir()) },
@@ -32,6 +30,10 @@ internal class SyncStoragesTestSuite(
             times = times,
             ids = ids,
         )
+    }
+
+    fun <T : Comparable<T>> storage(storages: MutableStorages, type: Class<T>): MutableStorage<T> {
+        return storages[type] ?: error("No storage $type!")
     }
 
     fun <T : Comparable<T>> assertEquals(expected: Payload<T>, actual: Payload<T>) {
@@ -79,8 +81,15 @@ internal class SyncStoragesTestSuite(
         return payload
     }
 
-    fun add(storage: MutableStorage<String>): Payload<String> {
-        return add(storage = storage, value = "value:${indices.incrementAndGet()}")
+    inline fun <reified T : Comparable<T>> add(storage: MutableStorage<T>): Payload<T> {
+        return add(storage = storage, value = Transformers.value(T::class.java, indices.incrementAndGet()))
+    }
+
+    inline fun <reified T : Comparable<T>> add(storages: MutableStorages, count: Int) {
+        check(count > 0)
+        for (i in 0 until count) {
+            add(storage(storages, T::class.java))
+        }
     }
 
     fun <T : Comparable<T>> update(storage: MutableStorage<T>, id: UUID, value: T): Payload<T> {
@@ -103,8 +112,12 @@ internal class SyncStoragesTestSuite(
         return expected
     }
 
-    fun update(storage: MutableStorage<String>, id: UUID): Payload<String> {
-        return update(storage = storage, id = id, value = "value:${indices.incrementAndGet()}")
+    inline fun <reified T : Comparable<T>> update(storage: MutableStorage<T>, id: UUID): Payload<T> {
+        val value = when (val type = T::class.java) {
+            String::class.java -> "value:${indices.incrementAndGet()}"
+            else -> error("Type $type is not supported!")
+        } as T
+        return update(storage = storage, id = id, value = value)
     }
 
     fun <T : Comparable<T>> delete(storage: MutableStorage<T>, id: UUID) {

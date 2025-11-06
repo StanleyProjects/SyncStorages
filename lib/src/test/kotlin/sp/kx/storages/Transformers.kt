@@ -1,29 +1,12 @@
 package sp.kx.storages
 
 import sp.kx.bytes.Transformer
-import sp.kx.bytes.readInt
+import sp.kx.bytes.readLong
 import sp.kx.bytes.toByteArray
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 
 internal object Transformers {
-    object Ints : Transformer<Int> {
-        override fun decode(encoded: ByteArray): Int {
-            return encoded.readInt()
-        }
-
-        override fun encode(decoded: Int): ByteArray {
-            return decoded.toByteArray()
-        }
-
-        fun map(payload: Payload<Int>): Payload<ByteArray> {
-            return Payload(
-                id = payload.id,
-                created = payload.created,
-                updated = payload.updated,
-                value = encode(decoded = payload.value),
-            )
-        }
-    }
-
     object Strings : Transformer<String> {
         override fun decode(encoded: ByteArray): String {
             return String(encoded)
@@ -32,14 +15,40 @@ internal object Transformers {
         override fun encode(decoded: String): ByteArray {
             return decoded.toByteArray()
         }
+    }
 
-        fun map(payload: Payload<String>): Payload<ByteArray> {
-            return Payload(
-                id = payload.id,
-                created = payload.created,
-                updated = payload.updated,
-                value = encode(decoded = payload.value),
-            )
+    object Durations : Transformer<Duration> {
+        override fun decode(encoded: ByteArray): Duration {
+            return encoded.readLong().milliseconds
         }
+
+        override fun encode(decoded: Duration): ByteArray {
+            return decoded.inWholeMilliseconds.toByteArray()
+        }
+    }
+
+    fun <T : Any> get(type: Class<out T>): Transformer<T> {
+        return when (type) {
+            String::class.java -> Strings
+            Duration::class.java -> Durations
+            else -> error("Type $type is not supported!")
+        } as Transformer<T>
+    }
+
+    fun <T : Any> value(type: Class<out T>, salt: Int): T {
+        return when (type) {
+            String::class.java -> "value:$salt"
+            Duration::class.java -> (1_000_000 + salt).milliseconds
+            else -> error("Type $type is not supported!")
+        } as T
+    }
+
+    fun <T : Any> map(payload: Payload<T>, transformer: Transformer<T>): Payload<ByteArray> {
+        return Payload(
+            id = payload.id,
+            created = payload.created,
+            updated = payload.updated,
+            value = transformer.encode(decoded = payload.value),
+        )
     }
 }
