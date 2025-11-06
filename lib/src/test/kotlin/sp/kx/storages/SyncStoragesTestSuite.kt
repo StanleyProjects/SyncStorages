@@ -1,6 +1,7 @@
 package sp.kx.storages
 
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import sp.kx.hashes.Hashes
 import sp.kx.ids.Ids
 import sp.kx.times.Times
@@ -46,6 +47,22 @@ internal class SyncStoragesTestSuite(
             expected = expected.valueStates,
             actual = actual.valueStates,
             assert = { index, expected, actual -> assertEquals(expected, actual, "SyncState:valueStates:$index") }
+        )
+    }
+
+    fun assertEquals(expected: MergeState, actual: MergeState) {
+        assertEquals(expected = expected.deleted, actual = actual.deleted)
+        assertEquals(expected = expected.picks, actual = actual.picks)
+        assertEquals(
+            expected = expected.gives,
+            actual = actual.gives,
+            comparator = Comparators.payloads,
+            assert = { _, expected, actual ->
+                assertEquals(expected.id, actual.id)
+                assertEquals(expected.created, actual.created)
+                assertEquals(expected.updated, actual.updated)
+                assertTrue(expected.value.contentEquals(actual.value))
+            }
         )
     }
 
@@ -113,11 +130,14 @@ internal class SyncStoragesTestSuite(
         return add(storage = storage, value = Transformers.value(T::class.java, indices.incrementAndGet()))
     }
 
-    inline fun <reified T : Comparable<T>> add(storages: MutableStorages, count: Int) {
+    inline fun <reified T : Comparable<T>> add(storages: MutableStorages, count: Int): List<Payload<T>> {
         check(count > 0)
+        val storage = storage(storages, T::class.java)
+        val payloads = ArrayList<Payload<T>>()
         for (i in 0 until count) {
-            add(storage(storages, T::class.java))
+            payloads += add(storage)
         }
+        return payloads
     }
 
     fun <T : Comparable<T>> update(storage: MutableStorage<T>, id: UUID, value: T): Payload<T> {

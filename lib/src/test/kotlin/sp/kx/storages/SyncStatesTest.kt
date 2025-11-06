@@ -25,7 +25,7 @@ internal class SyncStatesTest {
                         valueStates = storage.payloads.associate { payload ->
                             payload.id to mockValueState(
                                 updated = payload.updated,
-                                hash = testSuite.hashOf(payload, type = type),
+                                hash = testSuite.hashOf(payload = payload, type = type),
                             )
                         },
                     )
