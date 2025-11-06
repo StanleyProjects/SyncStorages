@@ -2,6 +2,7 @@ package sp.kx.storages
 
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
+import sp.kx.bytes.Transformer
 import sp.kx.hashes.Hashes
 import sp.kx.ids.Ids
 import sp.kx.times.Times
@@ -194,8 +195,7 @@ internal class SyncStoragesTestSuite(
         check(storage[payload.id] == null)
     }
 
-    fun <T : Any> hashOf(payload: Payload<out T>, type: Class<out T>): ByteArray {
-        val transformer = Transformers.get(type = type)
+    fun <T : Any> hashOf(payload: Payload<out T>, transformer: Transformer<in T>): ByteArray {
         return hashes.map(transformer.encode(payload.value))
     }
 }
