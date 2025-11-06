@@ -17,6 +17,16 @@ internal class SyncStoragesTestSuite(
 ) {
     private val indices = AtomicInteger(-1)
 
+    fun storages(builder: RealSyncStorages.Builder): SyncStorages {
+        return builder.build(
+            dir = dir.resolve("storages_${indices.incrementAndGet()}").also { check(it.mkdir()) },
+            hashes = hashes,
+            times = times,
+            ids = ids,
+        )
+    }
+
+    @Deprecated(message = "SyncStoragesTestSuite:storages(RealSyncStorages.Builder)")
     fun storages(types: Set<Class<out Comparable<*>>>): SyncStorages {
         val builder = RealSyncStorages.Builder()
         types.forEachIndexed { index, type ->
@@ -32,6 +42,10 @@ internal class SyncStoragesTestSuite(
 
     fun <T : Any> storage(storages: MutableStorages, type: Class<T>): MutableStorage<T> {
         return storages[type] ?: error("No storage $type!")
+    }
+
+    inline fun <reified T : Any> payload(storage: Storage<T>, id: UUID): Payload<T> {
+        return storage.get(id = id) ?: error("No payload(${T::class.java}) $id!")
     }
 
     fun <T : Comparable<T>> assertEquals(expected: Payload<T>, actual: Payload<T>) {
@@ -151,7 +165,8 @@ internal class SyncStoragesTestSuite(
             updated = updated,
             value = value,
         )
-        check(payload.updated != updated)
+        check(payload.created < updated)
+        check(payload.updated < updated)
         check(payload.value != value)
         assertEquals(
             expected = expected,
