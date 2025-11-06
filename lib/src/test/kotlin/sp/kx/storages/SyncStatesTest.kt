@@ -27,7 +27,7 @@ internal class SyncStatesTest {
                     valueStates = storage.payloads.associate { payload ->
                         payload.id to mockValueState(
                             updated = payload.updated,
-                            hash = testSuite.hashOf(payload, Transformers.Strings),
+                            hash = testSuite.hashOf(payload),
                         )
                     },
                 )
@@ -37,7 +37,7 @@ internal class SyncStatesTest {
                     valueStates = storage.payloads.associate { payload ->
                         payload.id to mockValueState(
                             updated = payload.updated,
-                            hash = testSuite.hashOf(payload, Transformers.Durations),
+                            hash = testSuite.hashOf(payload),
                         )
                     },
                 )

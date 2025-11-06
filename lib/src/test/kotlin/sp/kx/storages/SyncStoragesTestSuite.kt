@@ -27,20 +27,6 @@ internal class SyncStoragesTestSuite(
         )
     }
 
-    @Deprecated(message = "SyncStoragesTestSuite:storages(RealSyncStorages.Builder)")
-    fun storages(types: Set<Class<out Comparable<*>>>): SyncStorages {
-        val builder = RealSyncStorages.Builder()
-        types.forEachIndexed { index, type ->
-            builder.add(UUID(index.toLong(), 0), type, Transformers.get(type = type))
-        }
-        return builder.build(
-            dir = dir.resolve("storages_${indices.incrementAndGet()}").also { check(it.mkdir()) },
-            hashes = hashes,
-            times = times,
-            ids = ids,
-        )
-    }
-
     fun <T : Any> storage(storages: MutableStorages, type: Class<T>): MutableStorage<T> {
         return storages[type] ?: error("No storage $type!")
     }
@@ -176,14 +162,6 @@ internal class SyncStoragesTestSuite(
         return expected
     }
 
-    inline fun <reified T : Comparable<T>> update(storage: MutableStorage<T>, id: UUID): Payload<T> {
-        val value = when (val type = T::class.java) {
-            String::class.java -> "value:${indices.incrementAndGet()}"
-            else -> error("Type $type is not supported!")
-        } as T
-        return update(storage = storage, id = id, value = value)
-    }
-
     fun <T : Comparable<T>> delete(storage: MutableStorage<T>, id: UUID) {
         val before = storage.payloads
         val payload = storage[id] ?: error("No payload $id!")
@@ -195,7 +173,8 @@ internal class SyncStoragesTestSuite(
         check(storage[payload.id] == null)
     }
 
-    fun <T : Any> hashOf(payload: Payload<out T>, transformer: Transformer<in T>): ByteArray {
+    inline fun <reified T : Comparable<T>> hashOf(payload: Payload<out T>): ByteArray {
+        val transformer = Transformers.get(T::class.java)
         return hashes.map(transformer.encode(payload.value))
     }
 }

@@ -43,12 +43,12 @@ internal object Transformers {
         } as T
     }
 
-    fun <T : Any> map(payload: Payload<out T>, transformer: Transformer<in T>): Payload<ByteArray> {
+    inline fun <reified T : Comparable<T>> map(payload: Payload<out T>): Payload<ByteArray> {
         return Payload(
             id = payload.id,
             created = payload.created,
             updated = payload.updated,
-            value = transformer.encode(decoded = payload.value),
+            value = get(T::class.java).encode(decoded = payload.value),
         )
     }
 }

@@ -27,18 +27,14 @@ internal class MergeStatesTest {
                 val storage = testSuite.storage(transmitter, type)
                 expected[storage.id] = mockMergeState(
                     picks = testSuite.storage(receiver, type).payloads.map { it.id }.toSet(),
-                    gives = storage.payloads.map {
-                        Transformers.map(it, Transformers.Strings)
-                    },
+                    gives = storage.payloads.map(Transformers::map),
                 )
             }
             Duration::class.java.also { type ->
                 val storage = testSuite.storage(transmitter, type)
                 expected[storage.id] = mockMergeState(
                     picks = testSuite.storage(receiver, type).payloads.map { it.id }.toSet(),
-                    gives = storage.payloads.map {
-                        Transformers.map(it, Transformers.Durations)
-                    },
+                    gives = storage.payloads.map(Transformers::map),
                 )
             }
             testSuite.assertEquals(

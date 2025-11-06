@@ -50,7 +50,7 @@ internal class MutableStorageTest {
         testSuite.assertEquals(storage, emptyList())
         val p0 = testSuite.add(storage)
         assertEquals(null, storage.update(UUID(42, 0), "foobarbaz"))
-        val expected = testSuite.update(storage = storage, id = p0.id)
+        val expected = testSuite.update(storage = storage, id = p0.id, value = "${p0.value}:updated")
         assertEquals(p0.id, expected.id)
         assertEquals(p0.created, expected.created)
         check(p0.created < expected.updated)
