@@ -28,17 +28,17 @@ internal object Transformers {
     }
 
     fun <T : Any> get(type: Class<out T>): Transformer<T> {
-        return when (type) {
-            String::class.java -> Strings
-            Duration::class.java -> Durations
+        return when {
+            String::class.java.isAssignableFrom(type) -> Strings
+            Duration::class.java.isAssignableFrom(type) -> Durations
             else -> error("Type $type is not supported!")
         } as Transformer<T>
     }
 
     fun <T : Any> value(type: Class<out T>, salt: Int): T {
-        return when (type) {
-            String::class.java -> "value:$salt"
-            Duration::class.java -> (1_000_000 + salt).milliseconds
+        return when {
+            String::class.java.isAssignableFrom(type) -> "value:$salt"
+            Duration::class.java.isAssignableFrom(type) -> (1_000_000 + salt).milliseconds
             else -> error("Type $type is not supported!")
         } as T
     }

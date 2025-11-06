@@ -1,15 +1,12 @@
 package sp.kx.storages
 
 import org.junit.jupiter.api.Assertions.assertEquals
-import sp.kx.bytes.Transformer
 import sp.kx.hashes.Hashes
 import sp.kx.ids.Ids
 import sp.kx.times.Times
 import java.io.File
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
 
 internal class SyncStoragesTestSuite(
     private val dir: File,
@@ -32,7 +29,7 @@ internal class SyncStoragesTestSuite(
         )
     }
 
-    fun <T : Comparable<T>> storage(storages: MutableStorages, type: Class<T>): MutableStorage<T> {
+    fun <T : Any> storage(storages: MutableStorages, type: Class<T>): MutableStorage<T> {
         return storages[type] ?: error("No storage $type!")
     }
 
@@ -41,6 +38,15 @@ internal class SyncStoragesTestSuite(
         assertEquals(expected.created, actual.created)
         assertEquals(expected.updated, actual.updated)
         assertEquals(expected.value, actual.value)
+    }
+
+    fun assertEquals(expected: SyncState, actual: SyncState) {
+        assertEquals(expected = expected.deleted, actual = actual.deleted)
+        assertEquals(
+            expected = expected.valueStates,
+            actual = actual.valueStates,
+            assert = { index, expected, actual -> assertEquals(expected, actual, "SyncState:valueStates:$index") }
+        )
     }
 
     fun <T : Any> assertEquals(
@@ -56,6 +62,14 @@ internal class SyncStoragesTestSuite(
         }
     }
 
+    fun <T : Comparable<T>> assertEquals(expected: Collection<T>, actual: Collection<T>) {
+        assertEquals(expected.size, actual.size)
+        val sorted = actual.sorted()
+        expected.sorted().forEachIndexed { index, e ->
+            assertEquals(e, sorted[index])
+        }
+    }
+
     fun <T : Comparable<T>> assertEquals(
         storage: Storage<T>,
         expected: Collection<Payload<T>>,
@@ -66,6 +80,20 @@ internal class SyncStoragesTestSuite(
             comparator = Comparators.payloads,
             assert = { _, expected, actual -> assertEquals(expected = expected, actual = actual) },
         )
+    }
+
+    inline fun <reified K : Comparable<K>, reified V : Any> assertEquals(
+        expected: Map<K, V>,
+        actual: Map<K, V>,
+        assert: (index: Int, expected: V, actual: V) -> Unit,
+    ) {
+        assertEquals(expected.keys.size, actual.keys.size, "Map<${K::class.java.simpleName}, ${V::class.java.simpleName}>")
+        val sorted = actual.entries.sortedBy { (key, _) -> key }
+        expected.entries.sortedBy { (key, _) -> key }.forEachIndexed { index, (key, value) ->
+            val entry = sorted[index]
+            assertEquals(key, entry.key)
+            assert(index, value, entry.value)
+        }
     }
 
     fun <T : Comparable<T>> add(storage: MutableStorage<T>, value: T): Payload<T> {
@@ -129,5 +157,10 @@ internal class SyncStoragesTestSuite(
         check(before.count { it.id == payload.id } == 1)
         check(after.none { it.id == payload.id })
         check(storage[payload.id] == null)
+    }
+
+    fun <T : Any> hashOf(payload: Payload<out T>, type: Class<out T>): ByteArray {
+        val transformer = Transformers.get(type = type)
+        return hashes.map(transformer.encode(payload.value))
     }
 }
