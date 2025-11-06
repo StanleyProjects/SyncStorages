@@ -27,11 +27,11 @@ internal class SyncStoragesTestSuite(
         )
     }
 
-    fun <T : Any> storage(storages: MutableStorages, type: Class<T>): MutableStorage<T> {
+    fun <T : Comparable<T>> storage(storages: MutableStorages, type: Class<T>): MutableStorage<T> {
         return storages[type] ?: error("No storage $type!")
     }
 
-    inline fun <reified T : Any> payload(storage: Storage<T>, id: UUID): Payload<T> {
+    inline fun <reified T : Comparable<T>> payload(storage: Storage<T>, id: UUID): Payload<T> {
         return storage.get(id = id) ?: error("No payload(${T::class.java}) $id!")
     }
 
@@ -134,11 +134,7 @@ internal class SyncStoragesTestSuite(
     inline fun <reified T : Comparable<T>> add(storages: MutableStorages, count: Int): List<Payload<T>> {
         check(count > 0)
         val storage = storage(storages, T::class.java)
-        val payloads = ArrayList<Payload<T>>()
-        for (i in 0 until count) {
-            payloads += add(storage)
-        }
-        return payloads
+        return (0 until count).map { add(storage) }
     }
 
     fun <T : Comparable<T>> update(storage: MutableStorage<T>, id: UUID, value: T): Payload<T> {

@@ -43,5 +43,28 @@ internal class MergeStatesTest {
                 assert = { _, expected, actual -> testSuite.assertEquals(expected = expected, actual = actual) }
             )
         }
+        issuers[1].also { receiver ->
+            val transmitter = issuers[0]
+            val expected = mutableMapOf<UUID, MergeState>()
+            String::class.java.also { type ->
+                val storage = testSuite.storage(transmitter, type)
+                expected[storage.id] = mockMergeState(
+                    picks = testSuite.storage(receiver, type).payloads.map { it.id }.toSet(),
+                    gives = storage.payloads.map(Transformers::map),
+                )
+            }
+            Duration::class.java.also { type ->
+                val storage = testSuite.storage(transmitter, type)
+                expected[storage.id] = mockMergeState(
+                    picks = testSuite.storage(receiver, type).payloads.map { it.id }.toSet(),
+                    gives = storage.payloads.map(Transformers::map),
+                )
+            }
+            testSuite.assertEquals(
+                expected = expected,
+                actual = transmitter.getMergeStates(syncStates = receiver.getSyncStates()),
+                assert = { _, expected, actual -> testSuite.assertEquals(expected = expected, actual = actual) }
+            )
+        }
     }
 }
