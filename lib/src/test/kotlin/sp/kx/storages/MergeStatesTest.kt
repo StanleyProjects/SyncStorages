@@ -16,48 +16,40 @@ internal class MergeStatesTest {
         val issuers = (0 until 2).map { _ ->
             testSuite.storages(builder = builder)
         }
-        issuers.forEach { storages ->
+        val strings = issuers.map { storages ->
             testSuite.add<String>(storages, count = 2)
+        }
+        val durations = issuers.map { storages ->
             testSuite.add<Duration>(storages, count = 2)
         }
-        issuers[0].also { receiver ->
-            val transmitter = issuers[1]
-            val expected = mutableMapOf<UUID, MergeState>()
-            String::class.java.also { type ->
-                val storage = testSuite.storage(transmitter, type)
-                expected[storage.id] = mockMergeState(
-                    picks = testSuite.storage(receiver, type).payloads.map { it.id }.toSet(),
-                    gives = storage.payloads.map(Transformers::map),
-                )
-            }
-            Duration::class.java.also { type ->
-                val storage = testSuite.storage(transmitter, type)
-                expected[storage.id] = mockMergeState(
-                    picks = testSuite.storage(receiver, type).payloads.map { it.id }.toSet(),
-                    gives = storage.payloads.map(Transformers::map),
-                )
-            }
+        issuers.forEachIndexed { index, storages ->
             testSuite.assertEquals(
-                expected = expected,
-                actual = transmitter.getMergeStates(syncStates = receiver.getSyncStates()),
-                assert = testSuite::assertEquals,
+                storage = testSuite.storage(storages, String::class.java),
+                expected = strings[index],
             )
         }
-        issuers[1].also { receiver ->
-            val transmitter = issuers[0]
+        issuers.forEachIndexed { index, storages ->
+            testSuite.assertEquals(
+                storage = testSuite.storage(storages, Duration::class.java),
+                expected = durations[index],
+            )
+        }
+        listOf(0 to 1, 1 to 0).forEach { (r, t) ->
+            val receiver = issuers[r]
+            val transmitter = issuers[t]
             val expected = mutableMapOf<UUID, MergeState>()
             String::class.java.also { type ->
                 val storage = testSuite.storage(transmitter, type)
                 expected[storage.id] = mockMergeState(
-                    picks = testSuite.storage(receiver, type).payloads.map { it.id }.toSet(),
-                    gives = storage.payloads.map(Transformers::map),
+                    picks = strings[r].map { it.id }.toSet(),
+                    gives = strings[t].map(Transformers::map),
                 )
             }
             Duration::class.java.also { type ->
                 val storage = testSuite.storage(transmitter, type)
                 expected[storage.id] = mockMergeState(
-                    picks = testSuite.storage(receiver, type).payloads.map { it.id }.toSet(),
-                    gives = storage.payloads.map(Transformers::map),
+                    picks = durations[r].map { it.id }.toSet(),
+                    gives = durations[t].map(Transformers::map),
                 )
             }
             testSuite.assertEquals(
