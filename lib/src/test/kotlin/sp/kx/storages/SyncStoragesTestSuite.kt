@@ -174,6 +174,10 @@ internal class SyncStoragesTestSuite(
         return expected
     }
 
+    inline fun <reified T : Comparable<T>> update(storage: MutableStorage<T>, id: UUID): Payload<T> {
+        return update(storage = storage, id = id, value = Transformers.value(T::class.java, indices.incrementAndGet()))
+    }
+
     fun <T : Comparable<T>> delete(storage: MutableStorage<T>, id: UUID) {
         val before = storage.payloads
         val payload = storage[id] ?: error("No payload $id!")
