@@ -105,6 +105,24 @@ internal class SyncStatesTest {
             }
         }
         issuers.forEachIndexed { index, storages ->
+            String::class.java.also { type ->
+                val storage = testSuite.storage(storages, type)
+                val deleted = listOf(strings[index][0]).map { it.id }.toSet()
+                testSuite.assertEquals(
+                    storage = storage,
+                    expected = issuers.flatMapIndexed { i, _ -> strings[i] }.filter { !deleted.contains(it.id) },
+                )
+            }
+            Duration::class.java.also { type ->
+                val storage = testSuite.storage(storages, type)
+                val deleted = listOf(durations[index][0]).map { it.id }.toSet()
+                testSuite.assertEquals(
+                    storage = storage,
+                    expected = issuers.flatMapIndexed { i, _ -> durations[i] }.filter { !deleted.contains(it.id) },
+                )
+            }
+        }
+        issuers.forEachIndexed { index, storages ->
             val expected = mutableMapOf<UUID, SyncState>()
             String::class.java.also { type ->
                 val storage = testSuite.storage(storages, type)
