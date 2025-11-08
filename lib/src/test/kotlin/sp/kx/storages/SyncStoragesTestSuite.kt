@@ -96,11 +96,11 @@ internal class SyncStoragesTestSuite(
         }
     }
 
-    fun <T : Comparable<T>> assertEquals(expected: Collection<T>, actual: Collection<T>) {
-        assertEquals(expected.size, actual.size)
+    inline fun <reified T : Comparable<T>> assertEquals(expected: Collection<T>, actual: Collection<T>) {
+        assertEquals(expected.size, actual.size, T::class.java.simpleName)
         val sorted = actual.sorted()
         expected.sorted().forEachIndexed { index, e ->
-            assertEquals(e, sorted[index])
+            assertEquals(e, sorted[index], "${T::class.java.simpleName}:$index")
         }
     }
 
