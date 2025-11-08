@@ -45,7 +45,7 @@ internal class SyncStatesTest {
             testSuite.assertEquals(
                 expected = expected,
                 actual = storages.getSyncStates(),
-                assert = { _, expected, actual -> testSuite.assertEquals(expected = expected, actual = actual) }
+                assert = testSuite::assertEquals,
             )
         }
     }

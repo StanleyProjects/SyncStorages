@@ -35,11 +35,11 @@ internal class SyncStoragesTestSuite(
         return storage.get(id = id) ?: error("No payload(${T::class.java}) $id!")
     }
 
-    fun <T : Comparable<T>> assertEquals(expected: Payload<T>, actual: Payload<T>) {
-        assertEquals(expected.id, actual.id)
-        assertEquals(expected.created, actual.created)
-        assertEquals(expected.updated, actual.updated)
-        assertEquals(expected.value, actual.value)
+    inline fun <reified T : Comparable<T>> assertEquals(expected: Payload<T>, actual: Payload<T>) {
+        assertEquals(expected.id, actual.id, "Payload<${T::class.java.simpleName}>:id")
+        assertEquals(expected.created, actual.created, "Payload<${T::class.java.simpleName}>:created")
+        assertEquals(expected.updated, actual.updated, "Payload<${T::class.java.simpleName}>:updated")
+        assertEquals(expected.value, actual.value, "Payload<${T::class.java.simpleName}>:value")
     }
 
     fun assertEquals(expected: SyncState, actual: SyncState) {
@@ -47,7 +47,7 @@ internal class SyncStoragesTestSuite(
         assertEquals(
             expected = expected.valueStates,
             actual = actual.valueStates,
-            assert = { index, expected, actual -> assertEquals(expected, actual, "SyncState:valueStates:$index") }
+            assert = ::assertEquals,
         )
     }
 
@@ -58,25 +58,41 @@ internal class SyncStoragesTestSuite(
             expected = expected.gives,
             actual = actual.gives,
             comparator = Comparators.payloads,
-            assert = { _, expected, actual ->
-                assertEquals(expected.id, actual.id)
-                assertEquals(expected.created, actual.created)
-                assertEquals(expected.updated, actual.updated)
-                assertTrue(expected.value.contentEquals(actual.value))
+            assert = { i, e, a ->
+                assertEquals(e.id, a.id, "MergeState:gives:$i:id")
+                assertEquals(e.created, a.created, "MergeState:gives:$i:created")
+                assertEquals(e.updated, a.updated, "MergeState:gives:$i:updated")
+                assertTrue(e.value.contentEquals(a.value), "MergeState:gives:$i:value")
             }
         )
     }
 
-    fun <T : Any> assertEquals(
+    fun assertEquals(expected: CommitState, actual: CommitState) {
+        assertEquals(expected = expected.deleted, actual = actual.deleted)
+        assertEquals(
+            expected = expected.gives,
+            actual = actual.gives,
+            comparator = Comparators.payloads,
+            assert = { i, e, a ->
+                assertEquals(e.id, a.id, "CommitState:gives:$i:id")
+                assertEquals(e.created, a.created, "CommitState:gives:$i:created")
+                assertEquals(e.updated, a.updated, "CommitState:gives:$i:updated")
+                assertTrue(e.value.contentEquals(a.value), "CommitState:gives:$i:value")
+            },
+        )
+        assertTrue(expected.hash.contentEquals(actual.hash), "CommitState:hash")
+    }
+
+    inline fun <reified T : Any> assertEquals(
         expected: Collection<T>,
         actual: Collection<T>,
         comparator: Comparator<in T>,
-        assert: (index: Int, expected: T, actual: T) -> Unit,
+        assert: (i: Int, e: T, a: T) -> Unit,
     ) {
-        assertEquals(expected.size, actual.size)
+        assertEquals(expected.size, actual.size, T::class.java.simpleName)
         val sorted = actual.sortedWith(comparator)
-        expected.sortedWith(comparator).forEachIndexed { index, e ->
-            assert(index, e, sorted[index])
+        expected.sortedWith(comparator).forEachIndexed { i, e ->
+            assert(i, e, sorted[i])
         }
     }
 
@@ -88,7 +104,7 @@ internal class SyncStoragesTestSuite(
         }
     }
 
-    fun <T : Comparable<T>> assertEquals(
+    inline fun <reified T : Comparable<T>> assertEquals(
         storage: Storage<T>,
         expected: Collection<Payload<T>>,
     ) {
@@ -96,25 +112,25 @@ internal class SyncStoragesTestSuite(
             expected = expected,
             actual = storage.payloads,
             comparator = Comparators.payloads,
-            assert = { _, expected, actual -> assertEquals(expected = expected, actual = actual) },
+            assert = { _, e, a -> assertEquals(expected = e, actual = a) },
         )
     }
 
     inline fun <reified K : Comparable<K>, reified V : Any> assertEquals(
         expected: Map<K, V>,
         actual: Map<K, V>,
-        assert: (index: Int, expected: V, actual: V) -> Unit,
+        assert: (expected: V, actual: V) -> Unit,
     ) {
         assertEquals(expected.keys.size, actual.keys.size, "Map<${K::class.java.simpleName}, ${V::class.java.simpleName}>")
         val sorted = actual.entries.sortedBy { (key, _) -> key }
         expected.entries.sortedBy { (key, _) -> key }.forEachIndexed { index, (key, value) ->
             val entry = sorted[index]
             assertEquals(key, entry.key)
-            assert(index, value, entry.value)
+            assert(value, entry.value)
         }
     }
 
-    fun <T : Comparable<T>> add(storage: MutableStorage<T>, value: T): Payload<T> {
+    inline fun <reified T : Comparable<T>> add(storage: MutableStorage<T>, value: T): Payload<T> {
         val before = storage.payloads
         val payload = storage.add(value = value)
         val after = storage.payloads
@@ -137,7 +153,7 @@ internal class SyncStoragesTestSuite(
         return (0 until count).map { add(storage) }
     }
 
-    fun <T : Comparable<T>> update(storage: MutableStorage<T>, id: UUID, value: T): Payload<T> {
+    inline fun <reified T : Comparable<T>> update(storage: MutableStorage<T>, id: UUID, value: T): Payload<T> {
         val before = storage.payloads
         val payload = storage[id] ?: error("No payload $id!")
         val updated = storage.update(id = id, value = value) ?: error("Update error!")
@@ -172,5 +188,9 @@ internal class SyncStoragesTestSuite(
     inline fun <reified T : Comparable<T>> hashOf(payload: Payload<out T>): ByteArray {
         val transformer = Transformers.get(T::class.java)
         return hashes.map(transformer.encode(payload.value))
+    }
+
+    inline fun <reified T : Comparable<T>> hashOf(payloads: List<Payload<out T>>): ByteArray {
+        return SyncStorageAlgorithms.hashOf(payloads = payloads.map(Transformers::map), hashes = hashes)
     }
 }

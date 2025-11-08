@@ -40,7 +40,7 @@ internal class MergeStatesTest {
             testSuite.assertEquals(
                 expected = expected,
                 actual = transmitter.getMergeStates(syncStates = receiver.getSyncStates()),
-                assert = { _, expected, actual -> testSuite.assertEquals(expected = expected, actual = actual) }
+                assert = testSuite::assertEquals,
             )
         }
         issuers[1].also { receiver ->
@@ -63,7 +63,7 @@ internal class MergeStatesTest {
             testSuite.assertEquals(
                 expected = expected,
                 actual = transmitter.getMergeStates(syncStates = receiver.getSyncStates()),
-                assert = { _, expected, actual -> testSuite.assertEquals(expected = expected, actual = actual) }
+                assert = testSuite::assertEquals,
             )
         }
     }

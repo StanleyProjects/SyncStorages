@@ -51,7 +51,7 @@ internal object SyncStorageAlgorithms {
         }
     }
 
-    private fun hashOf(payloads: List<Payload<ByteArray>>, hashes: Hashes): ByteArray {
+    internal fun hashOf(payloads: List<Payload<ByteArray>>, hashes: Hashes): ByteArray {
         if (payloads.isEmpty()) return hashes.map(ByteArray(0))
         return payloads.fold(ByteArray(0)) { acc, payload ->
             val bytes = ByteArrayOutputStream().use { stream ->
