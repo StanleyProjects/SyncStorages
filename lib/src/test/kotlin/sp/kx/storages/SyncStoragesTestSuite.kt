@@ -195,6 +195,6 @@ internal class SyncStoragesTestSuite(
     }
 
     inline fun <reified T : Comparable<T>> hashOf(payloads: List<Payload<out T>>): ByteArray {
-        return SyncStorageAlgorithms.hashOf(payloads = payloads.map(Transformers::map), hashes = hashes)
+        return SyncStorageAlgorithms.hashOf(payloads = payloads.sortedWith(Comparators.payloads).map(Transformers::map), hashes = hashes)
     }
 }
