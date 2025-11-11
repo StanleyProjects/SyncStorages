@@ -14,6 +14,7 @@ import sp.kx.gradlex.create
 import sp.kx.gradlex.dir
 import sp.kx.gradlex.eff
 import sp.kx.gradlex.get
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 version = "0.2.3"
@@ -255,9 +256,12 @@ project.kotlin.target.compilations.getByName("jmh") {
         val iterations = 1
         val time = 1.seconds
         val forks = 1
-        val wf = 1
+        val wf = 0
+//        val wf = 1
         val wi = 1
-        val wt = 1.seconds
+        val wt = Duration.ZERO
+//        val wt = 1.seconds
+//        val mode = "Throughput"
         val mode = "AverageTime"
         val format = "text"
         val output = reports.resolve("result.txt")
@@ -275,6 +279,7 @@ project.kotlin.target.compilations.getByName("jmh") {
 //            "-prof=comp",
             "-rf=$format",
             "-rff=${output.absolutePath}",
+            "-tu=ms",
             "-t=max",
         )
     }

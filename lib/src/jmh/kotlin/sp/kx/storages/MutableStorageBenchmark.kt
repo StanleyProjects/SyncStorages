@@ -16,9 +16,14 @@ import kotlin.time.Duration.Companion.milliseconds
 
 @State(Scope.Benchmark)
 internal open class MutableStorageBenchmark {
-    @Param(value = ["128", "256", "512"])
+    @Param(value = ["1024"])
     var count: Int = 0
     private var storages: Storages? = null
+    private var storage: Storage<Foo>? = null
+    private var payloads: List<Payload<Foo>>? = null
+    private var first: Payload<Foo>? = null
+    private var mid: Payload<Foo>? = null
+    private var last: Payload<Foo>? = null
     private val dir = File("/tmp/storages")
     private val times = RealTimes()
     private val ids = RealIds()
@@ -48,20 +53,49 @@ internal open class MutableStorageBenchmark {
             storage.add(value = value)
         }
         this.storages = storages
+        this.storage = storage
+        val payloads = storage.payloads
+        first = payloads[0]
+        mid = payloads[payloads.size / 2]
+        last = payloads.lastOrNull()
     }
 
     @Benchmark
-    fun getBenchmark(hole: Blackhole) {
-        val storages = storages ?: error("No storages!")
-        val storage = storages[Foo::class.java] ?: error("No storage!")
-        storage.payloads.forEach { expected ->
-            val actual = storage[expected.id]
-            checkNotNull(actual)
-            check(expected.id == actual.id)
-            check(expected.created == actual.created)
-            check(expected.updated == actual.updated)
-            check(expected.value == actual.value)
-            hole.consume(actual)
-        }
+    fun getFirstBenchmark(hole: Blackhole) {
+        val storage = storage ?: error("No storage!")
+        val expected = first ?: error("No payload!")
+        val actual = storage[expected.id]
+        checkNotNull(actual)
+        check(expected.id == actual.id)
+        check(expected.created == actual.created)
+        check(expected.updated == actual.updated)
+        check(expected.value == actual.value)
+        hole.consume(actual)
+    }
+
+    @Benchmark
+    fun getMidBenchmark(hole: Blackhole) {
+        val storage = storage ?: error("No storage!")
+        val expected = mid ?: error("No payload!")
+        val actual = storage[expected.id]
+        checkNotNull(actual)
+        check(expected.id == actual.id)
+        check(expected.created == actual.created)
+        check(expected.updated == actual.updated)
+        check(expected.value == actual.value)
+        hole.consume(actual)
+    }
+
+    @Benchmark
+    fun getLastBenchmark(hole: Blackhole) {
+        val storage = storage ?: error("No storage!")
+        val expected = last ?: error("No payload!")
+        val actual = storage[expected.id]
+        checkNotNull(actual)
+        check(expected.id == actual.id)
+        check(expected.created == actual.created)
+        check(expected.updated == actual.updated)
+        check(expected.value == actual.value)
+        hole.consume(actual)
     }
 }
