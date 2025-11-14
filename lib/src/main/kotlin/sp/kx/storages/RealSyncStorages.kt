@@ -114,11 +114,11 @@ class RealSyncStorages private constructor(
     override fun getSyncStates(): Map<UUID, SyncState> {
         val syncStates = mutableMapOf<UUID, SyncState>()
         for (holder in holders) {
-            val streamer = dir.resolve("pointers.bin").inputStream().use { stream ->
-                Pointers.getStreamer(stream = stream, dir = dir, id = holder.id)
+            val src = dir.resolve("pointers.bin").inputStream().use { stream ->
+                Pointers.getFile(stream = stream, dir = dir, id = holder.id)
             }
             syncStates[holder.id] = SyncStorageAlgorithms.getSyncState(
-                streamer = streamer,
+                streamer = FileStreamer(src),
                 hashes = hashes,
             )
         }
@@ -129,11 +129,11 @@ class RealSyncStorages private constructor(
         val mergeStates = mutableMapOf<UUID, MergeState>()
         for ((id, syncState) in syncStates) {
             if (holders.none { it.id == id }) error("No storage by ID: \"$id\"!")
-            val streamer = dir.resolve("pointers.bin").inputStream().use { stream ->
-                Pointers.getStreamer(stream = stream, dir = dir, id = id)
+            val src = dir.resolve("pointers.bin").inputStream().use { stream ->
+                Pointers.getFile(stream = stream, dir = dir, id = id)
             }
             mergeStates[id] = SyncStorageAlgorithms.getMergeState(
-                streamer = streamer,
+                streamer = FileStreamer(src),
                 hashes = hashes,
                 syncState = syncState,
             )
@@ -143,16 +143,24 @@ class RealSyncStorages private constructor(
 
     override fun merge(mergeStates: Map<UUID, MergeState>): Map<UUID, CommitState> {
         val commitStates = mutableMapOf<UUID, CommitState>()
+        val pointers = mutableMapOf<UUID, Int>()
+        dir.resolve("pointers.bin").inputStream().use { stream ->
+            Pointers.writePointers(stream = stream, pointers = pointers)
+        }
         for ((id, mergeState) in mergeStates) {
             if (holders.none { it.id == id }) error("No storage by ID: \"$id\"!")
-            val src = dir.resolve("pointers.bin").inputStream().use { stream ->
-                Pointers.getFile(stream = stream, dir = dir, id = id)
-            }
+            val pointer = pointers[id] ?: 0
+            pointers[id] = pointer + 1
+            val src = Pointers.getFile(dir = dir, id = id, pointer = pointer)
+            val dst = Pointers.getFile(dir = dir, id = id, pointer = pointer + 1)
             commitStates[id] = SyncStorageAlgorithms.merge(
-                streamer = MutableFileStreamer(src = src),
+                streamer = MutableFileStreamer(src = src, dst = dst),
                 hashes = hashes,
                 mergeState = mergeState,
             )
+        }
+        dir.resolve("pointers.bin").outputStream().use { stream ->
+            Pointers.setPointers(stream = stream, pointers = pointers)
         }
         return commitStates
     }
