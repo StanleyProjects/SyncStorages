@@ -60,4 +60,25 @@ internal open class GetBenchmark : Benchmarks() {
         check(expected.value == actual.value)
         hole.consume(actual)
     }
+
+    @Benchmark
+    fun getRandomBenchmark(hole: Blackhole, state: FooState) {
+        val holder = state.holders[count] ?: error("No holder!")
+        val expected = holder.random
+        val actual = holder.storage[expected.id]
+        checkNotNull(actual)
+        check(expected.id == actual.id)
+        check(expected.created == actual.created)
+        check(expected.updated == actual.updated)
+        check(expected.value == actual.value)
+        hole.consume(actual)
+    }
+
+    @Benchmark
+    fun getNoneBenchmark(hole: Blackhole, state: FooState) {
+        val holder = state.holders[count] ?: error("No holder!")
+        val actual = holder.storage[holder.none]
+        check(actual == null)
+        hole.consume(holder.none)
+    }
 }

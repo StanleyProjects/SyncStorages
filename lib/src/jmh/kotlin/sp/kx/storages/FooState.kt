@@ -24,7 +24,7 @@ internal open class FooState(
             val storages = RealSyncStorages.Builder()
                 .add(UUID(0, 0), Foo::class.java, FooTransformer)
                 .build(
-                    dir = files.resolve("storages-$index-$count").also { check(it.mkdir()) },
+                    files = files.resolve("storages-$index-$count").also { check(it.mkdir()) },
                     hashes = hashes,
                     times = times,
                     ids = ids,
