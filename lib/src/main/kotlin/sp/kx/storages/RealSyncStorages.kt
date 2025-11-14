@@ -8,6 +8,8 @@ import sp.kx.streamers.FileStreamer
 import sp.kx.streamers.MutableFileStreamer
 import sp.kx.times.Times
 import java.io.File
+import java.io.InputStream
+import java.io.OutputStream
 import java.util.UUID
 
 class RealSyncStorages private constructor(
@@ -35,15 +37,31 @@ class RealSyncStorages private constructor(
         }
 
         fun build(
-            dir: File,
+            files: File,
             hashes: Hashes,
             times: Times,
             ids: Ids,
         ): SyncStorages {
             if (holders.isEmpty()) error("Empty storages!")
-            // todo check dir
+            if (files.exists()) {
+                check(files.isDirectory)
+            }
+            val dir = files.resolve("storages")
+            if (dir.exists()) {
+                check(dir.isDirectory)
+            } else {
+                check(dir.mkdirs())
+            }
+            val pointers = dir.resolve("pointers.bin")
+            if (pointers.exists()) {
+                check(pointers.isFile)
+            } else {
+                pointers.createNewFile()
+            }
             for (holder in holders) {
-                val src = Pointers.getFile(dir = dir, id = holder.id, pointer = 0)
+                val src = pointers.inputStream().use { stream ->
+                    Pointers.getFile(stream = stream, dir = dir, id = holder.id)
+                }
                 if (src.exists()) {
                     check(src.isFile)
                 } else {
@@ -63,10 +81,25 @@ class RealSyncStorages private constructor(
         }
     }
 
+    private val pointers: File
+
+    init {
+        check(dir.exists())
+        check(dir.isDirectory)
+        pointers = dir.resolve("pointers.bin")
+        if (pointers.exists()) {
+            check(pointers.isFile)
+        } else {
+            pointers.createNewFile()
+        }
+    }
+
     override fun <T : Any> get(type: Class<T>): MutableStorage<T>? {
         for (holder in holders) {
             if (!holder.type.isAssignableFrom(type)) continue
-            val src = Pointers.getFile(dir = dir, id = holder.id, pointer = 0)
+            val src = dir.resolve("pointers.bin").inputStream().use { stream ->
+                Pointers.getFile(stream = stream, dir = dir, id = holder.id)
+            }
             return SyncStorage(
                 id = holder.id,
                 streamer = MutableFileStreamer(src = src),
@@ -81,9 +114,11 @@ class RealSyncStorages private constructor(
     override fun getSyncStates(): Map<UUID, SyncState> {
         val syncStates = mutableMapOf<UUID, SyncState>()
         for (holder in holders) {
-            val src = Pointers.getFile(dir = dir, id = holder.id, pointer = 0)
+            val streamer = dir.resolve("pointers.bin").inputStream().use { stream ->
+                Pointers.getStreamer(stream = stream, dir = dir, id = holder.id)
+            }
             syncStates[holder.id] = SyncStorageAlgorithms.getSyncState(
-                streamer = FileStreamer(delegate = src),
+                streamer = streamer,
                 hashes = hashes,
             )
         }
@@ -94,9 +129,11 @@ class RealSyncStorages private constructor(
         val mergeStates = mutableMapOf<UUID, MergeState>()
         for ((id, syncState) in syncStates) {
             if (holders.none { it.id == id }) error("No storage by ID: \"$id\"!")
-            val src = Pointers.getFile(dir = dir, id = id, pointer = 0)
+            val streamer = dir.resolve("pointers.bin").inputStream().use { stream ->
+                Pointers.getStreamer(stream = stream, dir = dir, id = id)
+            }
             mergeStates[id] = SyncStorageAlgorithms.getMergeState(
-                streamer = FileStreamer(delegate = src),
+                streamer = streamer,
                 hashes = hashes,
                 syncState = syncState,
             )
@@ -108,7 +145,9 @@ class RealSyncStorages private constructor(
         val commitStates = mutableMapOf<UUID, CommitState>()
         for ((id, mergeState) in mergeStates) {
             if (holders.none { it.id == id }) error("No storage by ID: \"$id\"!")
-            val src = Pointers.getFile(dir = dir, id = id, pointer = 0)
+            val src = dir.resolve("pointers.bin").inputStream().use { stream ->
+                Pointers.getFile(stream = stream, dir = dir, id = id)
+            }
             commitStates[id] = SyncStorageAlgorithms.merge(
                 streamer = MutableFileStreamer(src = src),
                 hashes = hashes,
@@ -122,7 +161,9 @@ class RealSyncStorages private constructor(
         val result = mutableSetOf<UUID>()
         for ((id, commitState) in commitStates) {
             if (holders.none { it.id == id }) error("No storage by ID: \"$id\"!")
-            val src = Pointers.getFile(dir = dir, id = id, pointer = 0)
+            val src = dir.resolve("pointers.bin").inputStream().use { stream ->
+                Pointers.getFile(stream = stream, dir = dir, id = id)
+            }
             val commited = SyncStorageAlgorithms.commit(
                 streamer = MutableFileStreamer(src = src),
                 hashes = hashes,
