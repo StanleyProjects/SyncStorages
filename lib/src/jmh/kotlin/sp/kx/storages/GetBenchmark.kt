@@ -12,41 +12,67 @@ import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
 import org.openjdk.jmh.annotations.TearDown
+import org.openjdk.jmh.annotations.Threads
+import org.openjdk.jmh.annotations.Warmup
 import org.openjdk.jmh.infra.Blackhole
 import java.io.File
 import java.util.concurrent.TimeUnit
 
-@State(Scope.Thread)
-internal open class GetState() : FooState(parent = File("/tmp/storages"), counts = setOf(128))
-
 @State(Scope.Benchmark)
-internal open class GetBenchmark {
-    @Param(value = ["128"])
+@Fork(value = 1, warmups = 0)
+@Warmup(iterations = 0)
+@Measurement(iterations = 1, time = 1, timeUnit = TimeUnit.SECONDS)
+@BenchmarkMode(Mode.AverageTime)
+@OutputTimeUnit(TimeUnit.MILLISECONDS)
+@Threads(Threads.MAX)
+internal open class GetBenchmark(private val files: File = Benchmarks.files) {
+    @Param(value = ["128", "512", "1024", "8192"])
     var count: Int = 0
-    private val parent = File("/tmp/storages")
 
     @Setup(Level.Trial)
     fun eachTrial() {
-        if (parent.exists()) {
-            if (!parent.isDirectory) TODO()
-            parent.deleteRecursively()
+        if (files.exists()) {
+            if (!files.isDirectory) TODO()
+            files.deleteRecursively()
         }
-        check(parent.mkdirs())
+        check(files.mkdirs())
     }
 
     @TearDown(Level.Trial)
     fun tearDown() {
-        parent.deleteRecursively()
+        files.deleteRecursively()
     }
 
     @Benchmark
-    @Fork(value = 1, warmups = 0)
-    @Measurement(iterations = 1, time = 1, timeUnit = TimeUnit.NANOSECONDS)
-    @BenchmarkMode(Mode.SingleShotTime)
-    @OutputTimeUnit(TimeUnit.MILLISECONDS)
-    fun getFirstBenchmark(hole: Blackhole, state: GetState) {
+    fun getFirstBenchmark(hole: Blackhole, state: FooState) {
         val holder = state.holders[count] ?: error("No holder!")
         val expected = holder.first
+        val actual = holder.storage[expected.id]
+        checkNotNull(actual)
+        check(expected.id == actual.id)
+        check(expected.created == actual.created)
+        check(expected.updated == actual.updated)
+        check(expected.value == actual.value)
+        hole.consume(actual)
+    }
+
+    @Benchmark
+    fun getMidBenchmark(hole: Blackhole, state: FooState) {
+        val holder = state.holders[count] ?: error("No holder!")
+        val expected = holder.mid
+        val actual = holder.storage[expected.id]
+        checkNotNull(actual)
+        check(expected.id == actual.id)
+        check(expected.created == actual.created)
+        check(expected.updated == actual.updated)
+        check(expected.value == actual.value)
+        hole.consume(actual)
+    }
+
+    @Benchmark
+    fun getLastBenchmark(hole: Blackhole, state: FooState) {
+        val holder = state.holders[count] ?: error("No holder!")
+        val expected = holder.last
         val actual = holder.storage[expected.id]
         checkNotNull(actual)
         check(expected.id == actual.id)

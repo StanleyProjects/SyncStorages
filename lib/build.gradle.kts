@@ -251,7 +251,7 @@ project.kotlin.target.compilations.getByName("jmh") {
             outputResourceDir,
             outputClassesDir,
         )
-        val timeout = 10.seconds
+        val timeout = 16.seconds
         val format = "text"
         val output = reports.resolve("result.txt")
         args(
@@ -260,7 +260,6 @@ project.kotlin.target.compilations.getByName("jmh") {
             "-rf=$format",
             "-rff=${output.absolutePath}",
             "-foe=true",
-            "-t=max",
         )
     }
 }
