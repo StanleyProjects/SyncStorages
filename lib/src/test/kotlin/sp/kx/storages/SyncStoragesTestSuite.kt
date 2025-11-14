@@ -2,7 +2,6 @@ package sp.kx.storages
 
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
-import sp.kx.bytes.Transformer
 import sp.kx.hashes.Hashes
 import sp.kx.ids.Ids
 import sp.kx.times.Times
@@ -63,7 +62,7 @@ internal class SyncStoragesTestSuite(
                 assertEquals(e.created, a.created, "MergeState:gives:$i:created")
                 assertEquals(e.updated, a.updated, "MergeState:gives:$i:updated")
                 assertTrue(e.value.contentEquals(a.value), "MergeState:gives:$i:value")
-            }
+            },
         )
     }
 

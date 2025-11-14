@@ -12,12 +12,12 @@ internal class CommitStateTest {
             id = UUID(1, 0),
             created = 1.milliseconds,
             updated = 2.milliseconds,
-            value = byteArrayOf(4, 3, 2, 1)
+            value = byteArrayOf(4, 3, 2, 1),
         )
         val issuer = CommitState(
             deleted = setOf(UUID(2, 0)),
             gives = listOf(payload),
-            hash = byteArrayOf(4, 2)
+            hash = byteArrayOf(4, 2),
         )
         val expected = "CommitState(deleted: [00000000-0000-0002-0000-000000000000], gives: 1, hash: 2)"
         assertEquals(expected, issuer.toString())
@@ -29,12 +29,12 @@ internal class CommitStateTest {
             id = UUID(1, 0),
             created = 1.milliseconds,
             updated = 2.milliseconds,
-            value = byteArrayOf(4, 3, 2, 1)
+            value = byteArrayOf(4, 3, 2, 1),
         )
         val issuer = CommitState(
             deleted = setOf(UUID(2, 0)),
             gives = listOf(payload),
-            hash = byteArrayOf(4, 2)
+            hash = byteArrayOf(4, 2),
         )
         val expected = -936478655
         assertEquals(expected, issuer.hashCode())

@@ -12,7 +12,7 @@ internal class MergeStateTest {
             id = UUID(1, 0),
             created = 1.milliseconds,
             updated = 2.milliseconds,
-            value = byteArrayOf(4, 3, 2, 1)
+            value = byteArrayOf(4, 3, 2, 1),
         )
         val issuer = MergeState(
             deleted = setOf(UUID(2, 0)),
@@ -29,7 +29,7 @@ internal class MergeStateTest {
             id = UUID(1, 0),
             created = 1.milliseconds,
             updated = 2.milliseconds,
-            value = byteArrayOf(4, 3, 2, 1)
+            value = byteArrayOf(4, 3, 2, 1),
         )
         val issuer = MergeState(
             deleted = setOf(UUID(2, 0)),
