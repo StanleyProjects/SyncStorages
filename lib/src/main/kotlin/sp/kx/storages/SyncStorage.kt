@@ -64,6 +64,12 @@ internal class SyncStorage<T : Any>(
         )
     }
 
+    override fun addAll(values: List<T>): List<Payload<T>> {
+        val deleted = HashSet<UUID>()
+        val payloads = ArrayList<Payload<ByteArray>>()
+        TODO("SyncStorage:addAll($values)")
+    }
+
     override fun delete(id: UUID): Boolean {
         val deleted = HashSet<UUID>()
         val payloads = ArrayList<Payload<ByteArray>>()
