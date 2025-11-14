@@ -67,7 +67,39 @@ internal class SyncStorage<T : Any>(
     override fun addAll(values: List<T>): List<Payload<T>> {
         val deleted = HashSet<UUID>()
         val payloads = ArrayList<Payload<ByteArray>>()
-        TODO("SyncStorage:addAll($values)")
+        streamer.reader().use { stream ->
+            (0 until stream.readInt()).forEach { _ ->
+                deleted.add(stream.readUUID())
+            }
+            (0 until stream.readInt()).forEach { _ ->
+                payloads.add(SyncStorageAlgorithms.readPayload(stream = stream))
+            }
+        }
+        val result = ArrayList<Payload<T>>()
+        val created = times.now()
+        values.forEach { value ->
+            val id = ids.random()
+            payloads += Payload(
+                id = id,
+                created = created,
+                updated = created,
+                value = transformer.encode(value),
+            )
+            result += Payload(
+                id = id,
+                created = created,
+                updated = created,
+                value = value,
+            )
+        }
+        streamer.writer().use { stream ->
+            SyncStorageAlgorithms.write(
+                stream = stream,
+                deleted = deleted,
+                payloads = payloads,
+            )
+        }
+        return result
     }
 
     override fun delete(id: UUID): Boolean {
