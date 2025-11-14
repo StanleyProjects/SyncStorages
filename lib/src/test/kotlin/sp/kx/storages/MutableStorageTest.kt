@@ -41,6 +41,24 @@ internal class MutableStorageTest {
     }
 
     @Test
+    fun addAllTest(@TempDir dir: File) {
+        val testSuite = SyncStoragesTestSuite(dir = dir)
+        val builder = RealSyncStorages.Builder()
+            .add(UUID(0, 0), String::class.java, Transformers.Strings)
+        val storages = testSuite.storages(builder = builder)
+        val storage = testSuite.storage(storages, String::class.java)
+        testSuite.assertEquals(storage, emptyList())
+        val values = (0..9).map { "value:$it" }
+        val actual = storage.addAll(values = values)
+        assertEquals(values.size, actual.size)
+        actual.forEach { payload ->
+            testSuite.assertEquals(expected = payload, actual = testSuite.payload(storage, payload.id))
+        }
+        testSuite.assertEquals(storage, actual)
+        assertEquals(null, storage[UUID(42, 0)])
+    }
+
+    @Test
     fun updateTest(@TempDir dir: File) {
         val testSuite = SyncStoragesTestSuite(dir = dir)
         val builder = RealSyncStorages.Builder()
