@@ -49,12 +49,13 @@ tasks.register<JavaExec>("checkCodeStyle") {
         .asFile("index.html")
     args(
         "build.gradle.kts",
-        "settings.gradle.kts",
-        "buildSrc/src/main/kotlin/**/*.kt",
         "buildSrc/build.gradle.kts",
+        "buildSrc/src/main/kotlin/**/*.kt",
+        "lib/build.gradle.kts",
+        "lib/src/jmh/kotlin/**/*.kt",
         "lib/src/main/kotlin/**/*.kt",
         "lib/src/test/kotlin/**/*.kt",
-        "lib/build.gradle.kts",
+        "settings.gradle.kts",
         "--reporter=$reporter,output=${output.absolutePath}",
     )
 }

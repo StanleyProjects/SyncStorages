@@ -63,7 +63,7 @@ class RealSyncStorages private constructor(
 
     override fun <T : Any> get(type: Class<T>): MutableStorage<T>? {
         for (holder in holders) {
-            if (!type.isAssignableFrom(holder.type)) continue
+            if (!holder.type.isAssignableFrom(type)) continue
             val src = dir.resolve(holder.id.toString())
             return SyncStorage(
                 id = holder.id,

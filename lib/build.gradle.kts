@@ -14,8 +14,9 @@ import sp.kx.gradlex.create
 import sp.kx.gradlex.dir
 import sp.kx.gradlex.eff
 import sp.kx.gradlex.get
+import kotlin.time.Duration.Companion.seconds
 
-version = "0.2.2"
+version = "0.2.3"
 
 val maven = Maven.Artifact(
     group = "com.github.kepocnhh",
@@ -58,6 +59,12 @@ tasks.getByName<KotlinCompile>("compileTestKotlin") {
     kotlinOptions.jvmTarget = Version.jvmTarget
 }
 
+sourceSets.create("jmh") {
+    project.kotlin.target.compilations.also {
+        it[name].associateWith(it["main"])
+    }
+}
+
 dependencies {
     implementation("com.github.kepocnhh:Bytes:0.4.1u-SNAPSHOT")
     implementation("com.github.kepocnhh:Hashes:0.1.0-SNAPSHOT")
@@ -67,6 +74,8 @@ dependencies {
     implementation("com.github.kepocnhh:Times:0.0.1-SNAPSHOT")
     testImplementation("org.junit.jupiter:junit-jupiter-api:${Version.jupiter}")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:${Version.jupiter}")
+    "jmhImplementation"("org.openjdk.jmh:jmh-core:${Version.jmh}")
+    "jmhImplementation"("org.openjdk.jmh:jmh-generator-bytecode:${Version.jmh}")
 }
 
 fun Test.getExecutionData(): File {
@@ -200,6 +209,59 @@ fun tasks(variant: String, version: String, maven: Maven.Artifact, gh: GitHub.Re
             val file = gh.assemble(version = version, target = target)
             println("Metadata: ${file.absolutePath}")
         }
+    }
+}
+
+project.kotlin.target.compilations.getByName("jmh") {
+    val issuer = name
+    val dir = buildDir().dir("${issuer}Generated")
+    val outputSourceDir = dir.asFile("sources")
+    val outputResourceDir = dir.asFile("resources")
+    val outputClassesDir = dir.dir("classes")
+    val generatorType = "default"
+    val generators = output.classesDirs.map {
+        val compiledBytecodePath = it.absolutePath
+        // Usage: generator <compiled-bytecode-dir> <output-source-dir> <output-resource-dir> [generator-type]
+        tasks.register<JavaExec>("${issuer}RunBytecodeGenerator${compiledBytecodePath.hashCode()}") {
+            dependsOn("classes")
+            mainClass.set("org.openjdk.jmh.generators.bytecode.JmhBytecodeGenerator")
+            classpath = sourceSets[issuer].runtimeClasspath
+            args(
+                compiledBytecodePath,
+                outputSourceDir.absolutePath,
+                outputResourceDir.absolutePath,
+                generatorType,
+            )
+        }
+    }
+    val compileGeneratedTask = tasks.register<JavaCompile>("${issuer}CompileGenerated") {
+        dependsOn(generators)
+        classpath = sourceSets[issuer].runtimeClasspath
+        source(outputSourceDir)
+        destinationDirectory.set(outputClassesDir)
+    }
+    tasks.register<JavaExec>("runBenchmark") {
+        val benchmarks: String? by project
+        dependsOn(compileGeneratedTask)
+        val reports = buildDir().asFile("reports/jmh")
+        doFirst { reports.mkdirs() }
+        mainClass.set("org.openjdk.jmh.Main")
+        classpath(
+            sourceSets[issuer].runtimeClasspath,
+            outputResourceDir,
+            outputClassesDir,
+        )
+        val timeout = 10.seconds
+        val format = "text"
+        val output = reports.resolve("result.txt")
+        args(
+            benchmarks.orEmpty(),
+            "-to=${timeout.inWholeMilliseconds}ms",
+            "-rf=$format",
+            "-rff=${output.absolutePath}",
+            "-foe=true",
+            "-t=max",
+        )
     }
 }
 
