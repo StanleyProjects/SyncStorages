@@ -3,7 +3,6 @@ package sp.service.sample
 import sp.kx.bytes.Transformer
 import sp.kx.hashes.Hashes
 import sp.kx.ids.RealIds
-import sp.kx.storages.MutableStorages
 import sp.kx.storages.RealSyncStorages
 import sp.kx.times.RealTimes
 import java.io.File
@@ -19,40 +18,41 @@ fun main() {
             return decoded.toByteArray()
         }
     }
-    val dir = File("/tmp/storages-${System.currentTimeMillis()}")
-    check(dir.mkdir())
-    val storages: MutableStorages = RealSyncStorages.Builder()
-        .add(id = UUID.randomUUID(), type = String::class.java, transformer = transformer)
-        .build(
-            dir = dir,
-            hashes = Hashes.MD5,
-            times = RealTimes(),
-            ids = RealIds(),
-        )
-    val storage = storages[String::class.java] ?: error("No storage!")
-    println("storage: ${storage.id}")
-    check(storage.payloads.isEmpty())
-    //
-    val p0 = storage.add("foo")
-    println("item: ${p0.id}")
-    check(storage.payloads.size == 1)
-    check(storage[p0.id]!!.value == "foo")
-    val p1 = storage.add("bar")
-    println("item: ${p1.id}")
-    check(storage.payloads.size == 2)
-    check(storage[p1.id]!!.value == "bar")
-    val p2 = storage.add("baz")
-    println("item: ${p2.id}")
-    check(storage.payloads.size == 3)
-    check(storage[p2.id]!!.value == "baz")
-    //
-    val v1 = storage.update(id = p1.id, value = "qux")
-    checkNotNull(v1)
-    check(storage.payloads.size == 3)
-    check(storage[p1.id]!!.value == "qux")
-    //
-    check(storage.delete(p2.id))
-    check(storage.payloads.size == 2)
-    check(storage[p0.id]!!.value == "foo")
-    check(storage[p1.id]!!.value == "qux")
+    val hashes = Hashes.MD5
+    val times = RealTimes()
+    val ids = RealIds()
+    val storages = (0 until 2).map { index ->
+        val files = File("/tmp/storages-$index")
+        if (files.exists()) {
+            check(files.isDirectory)
+            check(files.deleteRecursively())
+        }
+        check(files.mkdir())
+        RealSyncStorages.Builder()
+            .add(id = UUID(0, 0), type = String::class.java, transformer = transformer)
+            .build(
+                files = files,
+                hashes = hashes,
+                times = times,
+                ids = ids,
+            )
+    }
+    storages.indices.forEach { index ->
+        val storage = storages[index][String::class.java] ?: error("No storage!")
+        val values = (0..9).map { "value:$index:$it" }
+        storage.addAll(values = values)
+    }
+    storages[0].commit(storages[1].merge(storages[0].getMergeStates(storages[1].getSyncStates())))
+    val payloads = storages.indices.map { index ->
+        val storage = storages[index][String::class.java] ?: error("No storage!")
+        storage.payloads
+    }
+    for (index in payloads[0].indices) {
+        val expected = payloads[0][index]
+        val actual = payloads[1][index]
+        check(expected.id == actual.id)
+        check(expected.created == actual.created)
+        check(expected.updated == actual.updated)
+        check(expected.value == actual.value)
+    }
 }
