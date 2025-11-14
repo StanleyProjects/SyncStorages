@@ -26,3 +26,22 @@ dependencies {
 ```
 
 ---
+
+## Benchmarks
+
+### run all benchmarks
+```
+$ gradle lib:runBenchmark
+```
+
+### run all benchmarks in the class
+```
+$ gradle lib:runBenchmark -Pbenchmarks=${class}
+```
+
+### run one benchmark in the class
+```
+$ gradle lib:runBenchmark -Pbenchmarks=${class}.${method}
+```
+
+---
