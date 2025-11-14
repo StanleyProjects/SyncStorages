@@ -35,16 +35,34 @@ class RealSyncStorages private constructor(
         }
 
         fun build(
-            dir: File,
+            files: File,
             hashes: Hashes,
             times: Times,
             ids: Ids,
         ): SyncStorages {
             if (holders.isEmpty()) error("Empty storages!")
-            // todo check dir
+            if (files.exists()) {
+                check(files.isDirectory)
+            }
+            val dir = files.resolve("storages")
+            if (dir.exists()) {
+                check(dir.isDirectory)
+            } else {
+                check(dir.mkdirs())
+            }
+            val pointers = dir.resolve("pointers.bin")
+            if (pointers.exists()) {
+                check(pointers.isFile)
+            } else {
+                pointers.createNewFile()
+            }
             for (holder in holders) {
-                val src = dir.resolve(holder.id.toString())
-                if (src.length() == 0L) {
+                val src = pointers.inputStream().use { stream ->
+                    Pointers.getFile(stream = stream, dir = dir, id = holder.id)
+                }
+                if (src.exists()) {
+                    check(src.isFile)
+                } else {
                     src.outputStream().use { stream ->
                         stream.writeBytes(0) // deleted
                         stream.writeBytes(0) // payloads
@@ -61,10 +79,25 @@ class RealSyncStorages private constructor(
         }
     }
 
+    private val pointers: File
+
+    init {
+        check(dir.exists())
+        check(dir.isDirectory)
+        pointers = dir.resolve("pointers.bin")
+        if (pointers.exists()) {
+            check(pointers.isFile)
+        } else {
+            pointers.createNewFile()
+        }
+    }
+
     override fun <T : Any> get(type: Class<T>): MutableStorage<T>? {
         for (holder in holders) {
             if (!holder.type.isAssignableFrom(type)) continue
-            val src = dir.resolve(holder.id.toString())
+            val src = dir.resolve("pointers.bin").inputStream().use { stream ->
+                Pointers.getFile(stream = stream, dir = dir, id = holder.id)
+            }
             return SyncStorage(
                 id = holder.id,
                 streamer = MutableFileStreamer(src = src),
@@ -79,9 +112,11 @@ class RealSyncStorages private constructor(
     override fun getSyncStates(): Map<UUID, SyncState> {
         val syncStates = mutableMapOf<UUID, SyncState>()
         for (holder in holders) {
-            val src = dir.resolve(holder.id.toString())
+            val src = dir.resolve("pointers.bin").inputStream().use { stream ->
+                Pointers.getFile(stream = stream, dir = dir, id = holder.id)
+            }
             syncStates[holder.id] = SyncStorageAlgorithms.getSyncState(
-                streamer = FileStreamer(delegate = src),
+                streamer = FileStreamer(src),
                 hashes = hashes,
             )
         }
@@ -92,9 +127,11 @@ class RealSyncStorages private constructor(
         val mergeStates = mutableMapOf<UUID, MergeState>()
         for ((id, syncState) in syncStates) {
             if (holders.none { it.id == id }) error("No storage by ID: \"$id\"!")
-            val src = dir.resolve(id.toString())
+            val src = dir.resolve("pointers.bin").inputStream().use { stream ->
+                Pointers.getFile(stream = stream, dir = dir, id = id)
+            }
             mergeStates[id] = SyncStorageAlgorithms.getMergeState(
-                streamer = FileStreamer(delegate = src),
+                streamer = FileStreamer(src),
                 hashes = hashes,
                 syncState = syncState,
             )
@@ -104,29 +141,69 @@ class RealSyncStorages private constructor(
 
     override fun merge(mergeStates: Map<UUID, MergeState>): Map<UUID, CommitState> {
         val commitStates = mutableMapOf<UUID, CommitState>()
+        val pointers = mutableMapOf<UUID, Int>()
+        for (holder in holders) pointers[holder.id] = 0
+        dir.resolve("pointers.bin").inputStream().use { stream ->
+            Pointers.writePointers(stream = stream, pointers = pointers)
+        }
         for ((id, mergeState) in mergeStates) {
             if (holders.none { it.id == id }) error("No storage by ID: \"$id\"!")
-            val src = dir.resolve(id.toString())
+            val pointer = pointers[id] ?: 0
+            val src = Pointers.getFile(dir = dir, id = id, pointer = pointer)
+            val dst = Pointers.getFile(dir = dir, id = id, pointer = pointer + 1)
             commitStates[id] = SyncStorageAlgorithms.merge(
-                streamer = MutableFileStreamer(src = src),
+                streamer = MutableFileStreamer(src = src, dst = dst),
                 hashes = hashes,
                 mergeState = mergeState,
             )
+            pointers[id] = pointer + 1
+        }
+        dir.resolve("pointers.bin").outputStream().use { stream ->
+            Pointers.setPointers(stream = stream, pointers = pointers)
+        }
+        for (file in dir.listFiles()!!) {
+            if (!file.exists() || !file.isFile) continue
+            if (file.name == "pointers.bin") continue
+            val contains = pointers.any { (id, pointer) ->
+                file.name == Pointers.getName(id = id, pointer = pointer)
+            }
+            if (!contains) check(file.delete())
         }
         return commitStates
     }
 
     override fun commit(commitStates: Map<UUID, CommitState>): Set<UUID> {
         val result = mutableSetOf<UUID>()
+        val pointers = mutableMapOf<UUID, Int>()
+        for (holder in holders) pointers[holder.id] = 0
+        dir.resolve("pointers.bin").inputStream().use { stream ->
+            Pointers.writePointers(stream = stream, pointers = pointers)
+        }
         for ((id, commitState) in commitStates) {
             if (holders.none { it.id == id }) error("No storage by ID: \"$id\"!")
-            val src = dir.resolve(id.toString())
+            val pointer = pointers[id] ?: 0
+            val src = Pointers.getFile(dir = dir, id = id, pointer = pointer)
+            val dst = Pointers.getFile(dir = dir, id = id, pointer = pointer + 1)
             val commited = SyncStorageAlgorithms.commit(
-                streamer = MutableFileStreamer(src = src),
+                streamer = MutableFileStreamer(src = src, dst = dst),
                 hashes = hashes,
                 commitState = commitState,
             )
-            if (commited) result.add(id)
+            if (commited) {
+                result.add(id)
+                pointers[id] = pointer + 1
+            }
+        }
+        dir.resolve("pointers.bin").outputStream().use { stream ->
+            Pointers.setPointers(stream = stream, pointers = pointers)
+        }
+        for (file in dir.listFiles()!!) {
+            if (!file.exists() || !file.isFile) continue
+            if (file.name == "pointers.bin") continue
+            val contains = pointers.any { (id, pointer) ->
+                file.name == Pointers.getName(id = id, pointer = pointer)
+            }
+            if (!contains) check(file.delete())
         }
         return result
     }

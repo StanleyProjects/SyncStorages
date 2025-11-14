@@ -1,10 +1,10 @@
 package sp.kx.storages
 
 internal object Comparators {
-    val payloads = object : Comparator<Payload<out Any>> {
+    val payloads = object : Comparator<Payload<Any>> {
         override fun compare(
-            p0: Payload<out Any>?,
-            p1: Payload<out Any>?,
+            p0: Payload<Any>?,
+            p1: Payload<Any>?,
         ): Int {
             if (p0 == null) {
                 if (p1 == null) return 0

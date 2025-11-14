@@ -19,7 +19,7 @@ internal class SyncStoragesTestSuite(
 
     fun storages(builder: RealSyncStorages.Builder): SyncStorages {
         return builder.build(
-            dir = dir.resolve("storages_${indices.incrementAndGet()}").also { check(it.mkdir()) },
+            files = dir.resolve("storages_${indices.incrementAndGet()}").also { check(it.mkdir()) },
             hashes = hashes,
             times = times,
             ids = ids,
