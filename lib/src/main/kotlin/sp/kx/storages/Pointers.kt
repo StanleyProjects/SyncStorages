@@ -15,7 +15,11 @@ internal object Pointers {
     }
 
     fun getFile(dir: File, id: UUID, pointer: Int): File {
-        return dir.resolve("$id-$pointer.bin")
+        return dir.resolve(getName(id = id, pointer = pointer))
+    }
+
+    fun getName(id: UUID, pointer: Int): String {
+        return "$id-$pointer.bin"
     }
 
     fun getPointer(stream: InputStream, id: UUID): Int? {

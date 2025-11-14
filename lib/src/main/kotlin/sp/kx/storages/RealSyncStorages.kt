@@ -144,6 +144,7 @@ class RealSyncStorages private constructor(
     override fun merge(mergeStates: Map<UUID, MergeState>): Map<UUID, CommitState> {
         val commitStates = mutableMapOf<UUID, CommitState>()
         val pointers = mutableMapOf<UUID, Int>()
+        for (holder in holders) pointers[holder.id] = 0
         dir.resolve("pointers.bin").inputStream().use { stream ->
             Pointers.writePointers(stream = stream, pointers = pointers)
         }
@@ -161,6 +162,14 @@ class RealSyncStorages private constructor(
         }
         dir.resolve("pointers.bin").outputStream().use { stream ->
             Pointers.setPointers(stream = stream, pointers = pointers)
+        }
+        for (file in dir.listFiles()!!) {
+            if (!file.exists() || !file.isFile) continue
+            if (file.name == "pointers.bin") continue
+            val contains = pointers.any { (id, pointer) ->
+                file.name == Pointers.getName(id = id, pointer = pointer)
+            }
+            if (!contains) check(file.delete())
         }
         return commitStates
     }
