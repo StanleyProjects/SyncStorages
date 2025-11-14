@@ -3,45 +3,24 @@ package sp.kx.storages
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.BenchmarkMode
 import org.openjdk.jmh.annotations.Fork
-import org.openjdk.jmh.annotations.Level
 import org.openjdk.jmh.annotations.Measurement
 import org.openjdk.jmh.annotations.Mode
 import org.openjdk.jmh.annotations.OutputTimeUnit
 import org.openjdk.jmh.annotations.Param
-import org.openjdk.jmh.annotations.Scope
-import org.openjdk.jmh.annotations.Setup
-import org.openjdk.jmh.annotations.State
-import org.openjdk.jmh.annotations.TearDown
 import org.openjdk.jmh.annotations.Threads
 import org.openjdk.jmh.annotations.Warmup
 import org.openjdk.jmh.infra.Blackhole
-import java.io.File
 import java.util.concurrent.TimeUnit
 
-@State(Scope.Benchmark)
 @Fork(value = 1, warmups = 0)
 @Warmup(iterations = 0)
 @Measurement(iterations = 1, time = 1, timeUnit = TimeUnit.SECONDS)
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.MILLISECONDS)
 @Threads(Threads.MAX)
-internal open class GetBenchmark(private val files: File = Benchmarks.files) {
+internal open class GetBenchmark : Benchmarks() {
     @Param(value = ["128", "512", "1024", "8192"])
     var count: Int = 0
-
-    @Setup(Level.Trial)
-    fun eachTrial() {
-        if (files.exists()) {
-            if (!files.isDirectory) TODO()
-            files.deleteRecursively()
-        }
-        check(files.mkdirs())
-    }
-
-    @TearDown(Level.Trial)
-    fun tearDown() {
-        files.deleteRecursively()
-    }
 
     @Benchmark
     fun getFirstBenchmark(hole: Blackhole, state: FooState) {

@@ -15,8 +15,6 @@ import java.util.concurrent.atomic.AtomicInteger
 internal open class FooState(
     files: File = Benchmarks.files,
     counts: Set<Int> = setOf(128, 512, 1024, 8192),
-//    counts: Set<Int> = setOf(128, 512, 1024, 8192, 16384),
-//    counts: Set<Int> = setOf(128, 512, 1024, 8192, 16384, 32768),
 ) {
     val holders: Map<Int, StoragesHolder<Foo>>
 
