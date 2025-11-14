@@ -16,7 +16,7 @@ import sp.kx.gradlex.eff
 import sp.kx.gradlex.get
 import kotlin.time.Duration.Companion.seconds
 
-version = "0.2.3"
+version = "0.2.4"
 
 val maven = Maven.Artifact(
     group = "com.github.kepocnhh",
@@ -69,7 +69,7 @@ dependencies {
     implementation("com.github.kepocnhh:Bytes:0.4.1u-SNAPSHOT")
     implementation("com.github.kepocnhh:Hashes:0.1.0-SNAPSHOT")
     implementation("com.github.kepocnhh:Ids:0.0.1-SNAPSHOT")
-    implementation("com.github.kepocnhh:Storages:0.13.2u-SNAPSHOT")
+    implementation("com.github.kepocnhh:Storages:0.13.3u-SNAPSHOT")
     implementation("com.github.kepocnhh:Streamers:0.1.0-SNAPSHOT")
     implementation("com.github.kepocnhh:Times:0.0.1-SNAPSHOT")
     testImplementation("org.junit.jupiter:junit-jupiter-api:${Version.jupiter}")
@@ -251,7 +251,7 @@ project.kotlin.target.compilations.getByName("jmh") {
             outputResourceDir,
             outputClassesDir,
         )
-        val timeout = 10.seconds
+        val timeout = 16.seconds
         val format = "text"
         val output = reports.resolve("result.txt")
         args(
@@ -260,7 +260,6 @@ project.kotlin.target.compilations.getByName("jmh") {
             "-rf=$format",
             "-rff=${output.absolutePath}",
             "-foe=true",
-            "-t=max",
         )
     }
 }
