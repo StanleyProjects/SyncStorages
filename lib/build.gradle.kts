@@ -16,7 +16,7 @@ import sp.kx.gradlex.eff
 import sp.kx.gradlex.get
 import kotlin.time.Duration.Companion.seconds
 
-version = "0.2.5"
+version = "0.3.0"
 
 val maven = Maven.Artifact(
     group = "com.github.kepocnhh",
