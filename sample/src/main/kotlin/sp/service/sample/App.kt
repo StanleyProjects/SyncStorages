@@ -1,23 +1,12 @@
 package sp.service.sample
 
-import sp.kx.bytes.Transformer
 import sp.kx.hashes.Hashes
 import sp.kx.ids.RealIds
 import sp.kx.storages.RealSyncStorages
 import sp.kx.times.RealTimes
 import java.io.File
-import java.util.UUID
 
 fun main() {
-    val transformer = object : Transformer<String> {
-        override fun decode(encoded: ByteArray): String {
-            return String(encoded)
-        }
-
-        override fun encode(decoded: String): ByteArray {
-            return decoded.toByteArray()
-        }
-    }
     val hashes = Hashes.MD5
     val times = RealTimes()
     val ids = RealIds()
@@ -29,7 +18,7 @@ fun main() {
         }
         check(files.mkdir())
         RealSyncStorages.Builder()
-            .add(id = UUID(0, 0), type = String::class.java, transformer = transformer)
+            .add(key = Keys.Strings, transformer = StringTransformer)
             .build(
                 files = files,
                 hashes = hashes,
@@ -38,13 +27,13 @@ fun main() {
             )
     }
     storages.indices.forEach { index ->
-        val storage = storages[index][String::class.java] ?: error("No storage!")
+        val storage = storages[index][Keys.Strings] ?: error("No storage!")
         val values = (0..9).map { "value:$index:$it" }
         storage.addAll(values = values)
     }
     storages[0].commit(storages[1].merge(storages[0].getMergeStates(storages[1].getSyncStates())))
     val payloads = storages.indices.map { index ->
-        val storage = storages[index][String::class.java] ?: error("No storage!")
+        val storage = storages[index][Keys.Strings] ?: error("No storage!")
         storage.payloads
     }
     for (index in payloads[0].indices) {
