@@ -9,6 +9,7 @@ import sp.kx.streamers.MutableFileStreamer
 import sp.kx.times.Times
 import java.io.File
 import java.util.UUID
+import kotlin.time.Duration
 
 class RealSyncStorages private constructor(
     private val dir: File,
@@ -207,7 +208,46 @@ class RealSyncStorages private constructor(
         return result
     }
 
+    private fun <T : Any> encode(
+        holder: TransformerHolder<T>,
+        operation: Transaction.Operation.Add<*>,
+    ): ByteArray? {
+        if (holder.key != operation.key) return null
+        return holder.transformer.encode(operation.value as T)
+    }
+
     override fun commit(transaction: Transaction) {
-        TODO("RealSyncStorages:commit($transaction)")
+        val mergeStates = HashMap<UUID, MergeState>()
+        val created = times.now()
+        for (operation in transaction.operations) {
+            when (operation) {
+                is Transaction.Operation.Add<*> -> {
+                    for (holder in holders) {
+                        val value = encode(holder = holder, operation = operation) ?: continue
+                        val mergeState = mergeStates.getOrPut(holder.key.id) {
+                            MergeState(
+                                deleted = emptySet(),
+                                picks = emptySet(),
+                                gives = emptyList(),
+                            )
+                        }
+                        val payload = Payload(
+                            id = ids.random(),
+                            created = created,
+                            updated = created,
+                            value = value,
+                        )
+                        mergeStates[holder.key.id] = MergeState(
+                            deleted = mergeState.deleted,
+                            picks = emptySet(),
+                            gives = mergeState.gives + payload,
+                        )
+                        break
+                    }
+                }
+                is Transaction.Operation.Delete<*> -> TODO("RealSyncStorages:commit($operation)")
+            }
+        }
+        merge(mergeStates = mergeStates)
     }
 }
