@@ -11,33 +11,33 @@ internal class SyncStatesTest {
     fun getSyncStatesTest(@TempDir dir: File) {
         val testSuite = SyncStoragesTestSuite(dir = dir)
         val builder = RealSyncStorages.Builder()
-            .add(UUID(0, 0), String::class.java, Transformers.Strings)
-            .add(UUID(1, 0), Duration::class.java, Transformers.Durations)
+            .add(Keys.Strings, Transformers.Strings)
+            .add(Keys.Durations, Transformers.Durations)
         val issuers = (0 until 2).map { _ ->
             testSuite.storages(builder = builder)
         }
         val strings = issuers.map { storages ->
-            testSuite.add<String>(storages, count = 2)
+            testSuite.add(storages, count = 2, key = Keys.Strings)
         }
         val durations = issuers.map { storages ->
-            testSuite.add<Duration>(storages, count = 2)
+            testSuite.add(storages, count = 2, key = Keys.Durations)
         }
         issuers.forEachIndexed { index, storages ->
             testSuite.assertEquals(
-                storage = testSuite.storage(storages, String::class.java),
+                storage = testSuite.storage(storages, key = Keys.Strings),
                 expected = strings[index],
             )
         }
         issuers.forEachIndexed { index, storages ->
             testSuite.assertEquals(
-                storage = testSuite.storage(storages, Duration::class.java),
+                storage = testSuite.storage(storages, key = Keys.Durations),
                 expected = durations[index],
             )
         }
         issuers.forEachIndexed { index, storages ->
             val expected = mutableMapOf<UUID, SyncState>()
-            String::class.java.also { type ->
-                val storage = testSuite.storage(storages, type)
+            Keys.Strings.also { key ->
+                val storage = testSuite.storage(storages, key = key)
                 expected[storage.id] = mockSyncState(
                     valueStates = strings[index].associate { payload ->
                         payload.id to mockValueState(
@@ -47,8 +47,8 @@ internal class SyncStatesTest {
                     },
                 )
             }
-            Duration::class.java.also { type ->
-                val storage = testSuite.storage(storages, type)
+            Keys.Durations.also { key ->
+                val storage = testSuite.storage(storages, key = key)
                 expected[storage.id] = mockSyncState(
                     valueStates = durations[index].associate { payload ->
                         payload.id to mockValueState(
@@ -70,51 +70,51 @@ internal class SyncStatesTest {
     fun deleteTest(@TempDir dir: File) {
         val testSuite = SyncStoragesTestSuite(dir = dir)
         val builder = RealSyncStorages.Builder()
-            .add(UUID(0, 0), String::class.java, Transformers.Strings)
-            .add(UUID(1, 0), Duration::class.java, Transformers.Durations)
+            .add(Keys.Strings, Transformers.Strings)
+            .add(Keys.Durations, Transformers.Durations)
         val issuers = (0 until 2).map { _ ->
             testSuite.storages(builder = builder)
         }
         val strings = issuers.map { storages ->
-            testSuite.add<String>(storages, count = 2)
+            testSuite.add(storages, count = 2, key = Keys.Strings)
         }
         val durations = issuers.map { storages ->
-            testSuite.add<Duration>(storages, count = 2)
+            testSuite.add(storages, count = 2, key = Keys.Durations)
         }
         issuers[0].commit(issuers[1].merge(issuers[0].getMergeStates(issuers[1].getSyncStates())))
         issuers.forEach { storages ->
             testSuite.assertEquals(
-                storage = testSuite.storage(storages, String::class.java),
+                storage = testSuite.storage(storages, key = Keys.Strings),
                 expected = issuers.flatMapIndexed { index, _ -> strings[index] },
             )
         }
         issuers.forEach { storages ->
             testSuite.assertEquals(
-                storage = testSuite.storage(storages, Duration::class.java),
+                storage = testSuite.storage(storages, key = Keys.Durations),
                 expected = issuers.flatMapIndexed { index, _ -> durations[index] },
             )
         }
         issuers.forEachIndexed { index, storages ->
-            String::class.java.also { type ->
-                val storage = testSuite.storage(storages, type)
+            Keys.Strings.also { key ->
+                val storage = testSuite.storage(storages, key = key)
                 testSuite.delete(storage, strings[index][0].id)
             }
-            Duration::class.java.also { type ->
-                val storage = testSuite.storage(storages, type)
+            Keys.Durations.also { key ->
+                val storage = testSuite.storage(storages, key = key)
                 testSuite.delete(storage, durations[index][0].id)
             }
         }
         issuers.forEachIndexed { index, storages ->
-            String::class.java.also { type ->
-                val storage = testSuite.storage(storages, type)
+            Keys.Strings.also { key ->
+                val storage = testSuite.storage(storages, key = key)
                 val deleted = listOf(strings[index][0]).map { it.id }.toSet()
                 testSuite.assertEquals(
                     storage = storage,
                     expected = issuers.flatMapIndexed { i, _ -> strings[i] }.filter { !deleted.contains(it.id) },
                 )
             }
-            Duration::class.java.also { type ->
-                val storage = testSuite.storage(storages, type)
+            Keys.Durations.also { key ->
+                val storage = testSuite.storage(storages, key = key)
                 val deleted = listOf(durations[index][0]).map { it.id }.toSet()
                 testSuite.assertEquals(
                     storage = storage,
@@ -124,8 +124,8 @@ internal class SyncStatesTest {
         }
         issuers.forEachIndexed { index, storages ->
             val expected = mutableMapOf<UUID, SyncState>()
-            String::class.java.also { type ->
-                val storage = testSuite.storage(storages, type)
+            Keys.Strings.also { key ->
+                val storage = testSuite.storage(storages, key = key)
                 val deleted = listOf(strings[index][0]).map { it.id }.toSet()
                 val payloads = issuers.flatMapIndexed { index, _ -> strings[index] }.filter { !deleted.contains(it.id) }
                 expected[storage.id] = mockSyncState(
@@ -138,8 +138,8 @@ internal class SyncStatesTest {
                     },
                 )
             }
-            Duration::class.java.also { type ->
-                val storage = testSuite.storage(storages, type)
+            Keys.Durations.also { key ->
+                val storage = testSuite.storage(storages, key = key)
                 val deleted = listOf(durations[index][0]).map { it.id }.toSet()
                 val payloads = issuers.flatMapIndexed { index, _ -> durations[index] }.filter { !deleted.contains(it.id) }
                 expected[storage.id] = mockSyncState(

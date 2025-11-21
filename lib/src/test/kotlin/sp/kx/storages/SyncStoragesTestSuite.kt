@@ -8,6 +8,7 @@ import sp.kx.times.Times
 import java.io.File
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.time.Duration
 
 internal class SyncStoragesTestSuite(
     private val dir: File,
@@ -26,8 +27,18 @@ internal class SyncStoragesTestSuite(
         )
     }
 
+    @Deprecated(message = "storage(MutableStorages, Storage.Key)")
     fun <T : Comparable<T>> storage(storages: MutableStorages, type: Class<T>): MutableStorage<T> {
-        return storages[type] ?: error("No storage $type!")
+        val key = when (type) {
+            String::class.java -> Keys.Strings
+            Duration::class.java -> Keys.Durations
+            else -> error("No storage $type!")
+        } as Storage.Key<T>
+        return storages[key] ?: error("No storage $key!")
+    }
+
+    fun <T : Comparable<T>> storage(storages: MutableStorages, key: Storage.Key<T>): MutableStorage<T> {
+        return storages[key] ?: error("No storage $key!")
     }
 
     inline fun <reified T : Comparable<T>> payload(storage: Storage<T>, id: UUID): Payload<T> {
@@ -146,9 +157,9 @@ internal class SyncStoragesTestSuite(
         return add(storage = storage, value = Transformers.value(T::class.java, indices.incrementAndGet()))
     }
 
-    inline fun <reified T : Comparable<T>> add(storages: MutableStorages, count: Int): List<Payload<T>> {
+    inline fun <reified T : Comparable<T>> add(storages: MutableStorages, count: Int, key: Storage.Key<T>): List<Payload<T>> {
         check(count > 0)
-        val storage = storage(storages, T::class.java)
+        val storage = storage(storages, key)
         return (0 until count).map { add(storage) }
     }
 
@@ -188,12 +199,12 @@ internal class SyncStoragesTestSuite(
         check(storage[payload.id] == null)
     }
 
-    inline fun <reified T : Comparable<T>> hashOf(payload: Payload<out T>): ByteArray {
+    inline fun <reified T : Comparable<T>> hashOf(payload: Payload<T>): ByteArray {
         val transformer = Transformers.get(T::class.java)
         return hashes.map(transformer.encode(payload.value))
     }
 
-    inline fun <reified T : Comparable<T>> hashOf(payloads: List<Payload<out T>>): ByteArray {
+    inline fun <reified T : Comparable<T>> hashOf(payloads: List<Payload<T>>): ByteArray {
         return SyncStorageAlgorithms.hashOf(payloads = payloads.sortedWith(Comparators.payloads).map(Transformers::map), hashes = hashes)
     }
 }
