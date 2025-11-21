@@ -10,7 +10,7 @@ import java.util.UUID
 import kotlin.time.Duration
 
 internal class SyncStorage<T : Any>(
-    override val key: Storage.Key<T>,
+    override val id: UUID,
     private val streamer: MutableStreamer,
     private val transformer: Transformer<T>,
     private val times: Times,

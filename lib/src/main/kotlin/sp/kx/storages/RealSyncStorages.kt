@@ -94,15 +94,13 @@ class RealSyncStorages private constructor(
     override fun <T : Any> get(key: Storage.Key<T>): MutableStorage<T>? {
         for (holder in holders) {
             if (holder.key != key) continue
-            val key = holder.key as Storage.Key<T>
-            val transformer = holder.transformer as Transformer<T>
             val src = dir.resolve("pointers.bin").inputStream().use { stream ->
-                Pointers.getFile(stream = stream, dir = dir, id = key.id)
+                Pointers.getFile(stream = stream, dir = dir, id = holder.key.id)
             }
             return SyncStorage(
-                key = key,
+                id = holder.key.id,
                 streamer = MutableFileStreamer(src = src),
-                transformer = transformer,
+                transformer = holder.transformer as Transformer<T>,
                 times = times,
                 ids = ids,
             )
