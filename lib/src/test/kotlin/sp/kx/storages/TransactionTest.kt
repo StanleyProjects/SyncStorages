@@ -22,17 +22,19 @@ internal class TransactionTest {
             expected = emptyList(),
         )
         var transaction = Transaction.Builder()
-            .add(Keys.Strings, "foo")
-            .add(Keys.Strings, "bar")
-            .add(Keys.Durations, 42.seconds)
-            .add(Keys.Durations, 43.seconds)
+            .add(Keys.Strings, "s00")
+            .add(Keys.Strings, "s01")
+            .add(Keys.Strings, "s02")
+            .add(Keys.Durations, 100.seconds)
+            .add(Keys.Durations, 101.seconds)
+            .add(Keys.Durations, 102.seconds)
             .build()
         storages.commit(transaction = transaction)
         Keys.Strings.also { key ->
             val payloads = testSuite.storage(storages, key = key).payloads
             val values = payloads.map { it.value }
             testSuite.assertEquals(
-                expected = listOf("foo", "bar"),
+                expected = listOf("s00", "s01", "s02"),
                 actual = values,
             )
         }
@@ -40,24 +42,28 @@ internal class TransactionTest {
             val payloads = testSuite.storage(storages, key = key).payloads
             val values = payloads.map { it.value }
             testSuite.assertEquals(
-                expected = listOf(42.seconds, 43.seconds),
+                expected = listOf(100.seconds, 101.seconds, 102.seconds),
                 actual = values,
             )
         }
-        val s0 = testSuite.storage(storages, key = Keys.Strings).payloads.firstOrNull { it.value == "bar" } ?: error("No payload!")
-        val d0 = testSuite.storage(storages, key = Keys.Durations).payloads.firstOrNull { it.value == 43.seconds } ?: error("No payload!")
+        val s0 = testSuite.storage(storages, key = Keys.Strings).payloads.firstOrNull { it.value == "s00" } ?: error("No payload!")
+        val s1 = testSuite.storage(storages, key = Keys.Strings).payloads.firstOrNull { it.value == "s01" } ?: error("No payload!")
+        val d0 = testSuite.storage(storages, key = Keys.Durations).payloads.firstOrNull { it.value == 100.seconds } ?: error("No payload!")
+        val d1 = testSuite.storage(storages, key = Keys.Durations).payloads.firstOrNull { it.value == 101.seconds } ?: error("No payload!")
         transaction = Transaction.Builder()
-            .add(Keys.Strings, "baz")
             .delete(Keys.Strings, id = s0.id)
-            .add(Keys.Durations, 44.seconds)
+            .update(Keys.Strings, id = s1.id, value = "s01:updated")
+            .add(Keys.Strings, "s09")
             .delete(Keys.Durations, id = d0.id)
+            .update(Keys.Durations, id = d1.id, value = 111.seconds)
+            .add(Keys.Durations, 109.seconds)
             .build()
         storages.commit(transaction = transaction)
         Keys.Strings.also { key ->
             val payloads = testSuite.storage(storages, key = key).payloads
             val values = payloads.map { it.value }
             testSuite.assertEquals(
-                expected = listOf("foo", "baz"),
+                expected = listOf("s01:updated", "s02", "s09"),
                 actual = values,
             )
         }
@@ -65,7 +71,7 @@ internal class TransactionTest {
             val payloads = testSuite.storage(storages, key = key).payloads
             val values = payloads.map { it.value }
             testSuite.assertEquals(
-                expected = listOf(42.seconds, 44.seconds),
+                expected = listOf(111.seconds, 102.seconds, 109.seconds),
                 actual = values,
             )
         }
