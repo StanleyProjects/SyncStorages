@@ -138,6 +138,33 @@ internal class TransactionTest {
     }
 
     @Test
+    fun deleteFirstTest(@TempDir dir: File) {
+        val testSuite = SyncStoragesTestSuite(dir = dir)
+        val builder = RealSyncStorages.Builder()
+            .add(Keys.Strings, Transformers.Strings)
+            .add(Keys.Durations, Transformers.Durations)
+        val storages = testSuite.storages(builder = builder)
+        var transaction = Transaction.Builder()
+            .add(Keys.Strings, "foo")
+            .add(Keys.Durations, 42.seconds)
+            .build()
+        storages.commit(transaction = transaction)
+        transaction = Transaction.Builder()
+            .deleteFirst(key = Keys.Strings) { it.value == "foo" }
+            .deleteFirst(key = Keys.Durations) { it.value == 42.seconds }
+            .build()
+        storages.commit(transaction = transaction)
+        testSuite.assertEquals(
+            storage = testSuite.storage(storages, key = Keys.Strings),
+            expected = emptyList(),
+        )
+        testSuite.assertEquals(
+            storage = testSuite.storage(storages, key = Keys.Durations),
+            expected = emptyList(),
+        )
+    }
+
+    @Test
     fun updateTest(@TempDir dir: File) {
         val testSuite = SyncStoragesTestSuite(dir = dir)
         val builder = RealSyncStorages.Builder()
