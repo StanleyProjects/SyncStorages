@@ -219,7 +219,9 @@ class RealSyncStorages private constructor(
     }
 
     override fun commit(transaction: Transaction) {
-        val updates = HashMap<UUID, MutableList<Payload<ByteArray>>>()
+        val locals = HashMap<UUID, MutableList<Payload<ByteArray>>>()
+        val gives = HashMap<UUID, MutableList<Payload<ByteArray>>>()
+        val deleted = HashMap<UUID, MutableSet<UUID>>()
         val updated = HashSet<UUID>()
         val now = times.now()
         for (operation in transaction.operations) {
@@ -227,7 +229,22 @@ class RealSyncStorages private constructor(
                 is Transaction.Operation.Add<*> -> {
                     for (holder in holders) {
                         val value = encode(holder = holder, operation = operation) ?: continue
-                        val payloads = updates.getOrPut(holder.key.id) {
+                        val payloads = gives.getOrPut(holder.key.id, ::ArrayList)
+                        val payload = Payload(
+                            id = ids.random(),
+                            created = now,
+                            updated = now,
+                            value = value,
+                        )
+                        payloads.add(payload)
+                        updated.add(holder.key.id)
+                        break
+                    }
+                }
+                is Transaction.Operation.Delete<*> -> {
+                    for (holder in holders) {
+                        if (holder.key != operation.key) continue
+                        val payloads = locals.getOrPut(holder.key.id) {
                             val src = dir.resolve("pointers.bin").inputStream().use { stream ->
                                 Pointers.getFile(stream = stream, dir = dir, id = holder.key.id)
                             }
@@ -240,27 +257,21 @@ class RealSyncStorages private constructor(
                             }
                             payloads
                         }
-                        val payload = Payload(
-                            id = ids.random(),
-                            created = now,
-                            updated = now,
-                            value = value,
-                        )
-                        payloads.add(payload)
-                        updated.add(holder.key.id)
+                        if (payloads.any { it.id == operation.id }) {
+                            deleted.getOrPut(holder.key.id, ::HashSet).add(operation.id)
+                            updated.add(holder.key.id)
+                        }
                         break
                     }
                 }
-                is Transaction.Operation.Delete<*> -> TODO("RealSyncStorages:commit($operation)")
             }
         }
         val mergeStates = HashMap<UUID, MergeState>()
         for (id in updated) {
-            val gives = updates[id] ?: TODO()
             mergeStates[id] = MergeState(
-                deleted = emptySet(), // todo
+                deleted = deleted[id].orEmpty(),
                 picks = emptySet(), // todo
-                gives = gives,
+                gives = gives[id].orEmpty(),
             )
         }
         merge(mergeStates = mergeStates)
