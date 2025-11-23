@@ -218,6 +218,14 @@ class RealSyncStorages private constructor(
         return holder.transformer.encode(operation.value as T)
     }
 
+    private fun <T : Any> encode(
+        holder: TransformerHolder<T>,
+        operation: Transaction.Operation.Update<*>,
+    ): ByteArray? {
+        if (holder.key != operation.key) return null
+        return holder.transformer.encode(operation.value as T)
+    }
+
     override fun commit(transaction: Transaction) {
         val locals = HashMap<UUID, MutableList<Payload<ByteArray>>>()
         val gives = HashMap<UUID, MutableList<Payload<ByteArray>>>()
@@ -229,14 +237,12 @@ class RealSyncStorages private constructor(
                 is Transaction.Operation.Add<*> -> {
                     for (holder in holders) {
                         val value = encode(holder = holder, operation = operation) ?: continue
-                        val payloads = gives.getOrPut(holder.key.id, ::ArrayList)
-                        val payload = Payload(
+                        gives.getOrPut(holder.key.id, ::ArrayList) += Payload(
                             id = ids.random(),
                             created = now,
                             updated = now,
                             value = value,
                         )
-                        payloads.add(payload)
                         updated.add(holder.key.id)
                         break
                     }
@@ -264,6 +270,35 @@ class RealSyncStorages private constructor(
                         break
                     }
                 }
+                is Transaction.Operation.DeleteFirst<*> -> TODO("RealSyncStorages:commit($transaction)")
+                is Transaction.Operation.Update<*> -> {
+                    for (holder in holders) {
+                        val value = encode(holder = holder, operation = operation) ?: continue
+                        val payloads = locals.getOrPut(holder.key.id) {
+                            val src = dir.resolve("pointers.bin").inputStream().use { stream ->
+                                Pointers.getFile(stream = stream, dir = dir, id = holder.key.id)
+                            }
+                            val payloads = ArrayList<Payload<ByteArray>>()
+                            FileInputStream(src).use { stream ->
+                                stream.skip((stream.readInt() * 16).toLong()) // deleted
+                                (0 until stream.readInt()).forEach { _ ->
+                                    payloads.add(SyncStorageAlgorithms.readPayload(stream = stream))
+                                }
+                            }
+                            payloads
+                        }
+                        val payload = payloads.firstOrNull { it.id == operation.id } ?: continue
+                        gives.getOrPut(holder.key.id, ::ArrayList) += Payload(
+                            id = payload.id,
+                            created = payload.created,
+                            updated = now,
+                            value = value,
+                        )
+                        updated.add(holder.key.id)
+                        break
+                    }
+                }
+                is Transaction.Operation.UpdateFirst<*> -> TODO("RealSyncStorages:commit($transaction)")
             }
         }
         val mergeStates = HashMap<UUID, MergeState>()
