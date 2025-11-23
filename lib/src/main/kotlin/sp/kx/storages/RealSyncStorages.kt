@@ -210,20 +210,8 @@ class RealSyncStorages private constructor(
         return result
     }
 
-    private fun <T : Any> encode(
-        holder: TransformerHolder<T>,
-        operation: Transaction.Operation.Add<*>,
-    ): ByteArray? {
-        if (holder.key != operation.key) return null
-        return holder.transformer.encode(operation.value as T)
-    }
-
-    private fun <T : Any> encode(
-        holder: TransformerHolder<T>,
-        operation: Transaction.Operation.Update<*>,
-    ): ByteArray? {
-        if (holder.key != operation.key) return null
-        return holder.transformer.encode(operation.value as T)
+    private fun <T : Any> encode(holder: TransformerHolder<T>, value: Any): ByteArray {
+        return holder.transformer.encode(value as T)
     }
 
     override fun commit(transaction: Transaction) {
@@ -236,7 +224,8 @@ class RealSyncStorages private constructor(
             when (operation) {
                 is Transaction.Operation.Add<*> -> {
                     for (holder in holders) {
-                        val value = encode(holder = holder, operation = operation) ?: continue
+                        if (holder.key != operation.key) continue
+                        val value = encode(holder = holder, value = operation.value)
                         gives.getOrPut(holder.key.id, ::ArrayList) += Payload(
                             id = ids.random(),
                             created = now,
@@ -273,7 +262,8 @@ class RealSyncStorages private constructor(
                 is Transaction.Operation.DeleteFirst<*> -> TODO("RealSyncStorages:commit($transaction)")
                 is Transaction.Operation.Update<*> -> {
                     for (holder in holders) {
-                        val value = encode(holder = holder, operation = operation) ?: continue
+                        if (holder.key != operation.key) continue
+                        val value = encode(holder = holder, value = operation.value)
                         val payloads = locals.getOrPut(holder.key.id) {
                             val src = dir.resolve("pointers.bin").inputStream().use { stream ->
                                 Pointers.getFile(stream = stream, dir = dir, id = holder.key.id)
