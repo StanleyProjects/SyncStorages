@@ -214,6 +214,24 @@ class RealSyncStorages private constructor(
         return holder.transformer.encode(value as T)
     }
 
+    private fun <T : Any> getFirst(
+        holder: TransformerHolder<T>,
+        payloads: List<Payload<ByteArray>>,
+        operation: Transaction.Operation.DeleteFirst<*>,
+    ): Payload<T>? {
+        val condition = operation.condition as (Payload<T>) -> Boolean
+        for (payload in payloads) {
+            val decoded = Payload(
+                id = payload.id,
+                created = payload.created,
+                updated = payload.updated,
+                value = holder.transformer.decode(payload.value),
+            )
+            if (condition(decoded)) return decoded
+        }
+        return null
+    }
+
     override fun commit(transaction: Transaction) {
         val locals = HashMap<UUID, MutableList<Payload<ByteArray>>>()
         val gives = HashMap<UUID, MutableList<Payload<ByteArray>>>()
@@ -259,7 +277,31 @@ class RealSyncStorages private constructor(
                         break
                     }
                 }
-                is Transaction.Operation.DeleteFirst<*> -> TODO("RealSyncStorages:commit($transaction)")
+                is Transaction.Operation.DeleteFirst<*> -> {
+                    for (holder in holders) {
+                        if (holder.key != operation.key) continue
+                        val payloads = locals.getOrPut(holder.key.id) {
+                            val src = dir.resolve("pointers.bin").inputStream().use { stream ->
+                                Pointers.getFile(stream = stream, dir = dir, id = holder.key.id)
+                            }
+                            val payloads = ArrayList<Payload<ByteArray>>()
+                            FileInputStream(src).use { stream ->
+                                stream.skip((stream.readInt() * 16).toLong()) // deleted
+                                (0 until stream.readInt()).forEach { _ ->
+                                    payloads.add(SyncStorageAlgorithms.readPayload(stream = stream))
+                                }
+                            }
+                            payloads
+                        }
+                        val payload = getFirst(holder, payloads, operation)
+                        if (payload != null) {
+                            deleted.getOrPut(holder.key.id, ::HashSet).add(payload.id)
+                            updated.add(holder.key.id)
+                            break
+                        }
+                        break
+                    }
+                }
                 is Transaction.Operation.Update<*> -> {
                     for (holder in holders) {
                         if (holder.key != operation.key) continue
