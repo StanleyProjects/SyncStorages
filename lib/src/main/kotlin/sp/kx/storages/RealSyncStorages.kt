@@ -1,6 +1,7 @@
 package sp.kx.storages
 
 import sp.kx.bytes.Transformer
+import sp.kx.bytes.readInt
 import sp.kx.bytes.writeBytes
 import sp.kx.hashes.Hashes
 import sp.kx.ids.Ids
@@ -8,6 +9,7 @@ import sp.kx.streamers.FileStreamer
 import sp.kx.streamers.MutableFileStreamer
 import sp.kx.times.Times
 import java.io.File
+import java.io.FileInputStream
 import java.util.UUID
 import kotlin.time.Duration
 
@@ -217,36 +219,49 @@ class RealSyncStorages private constructor(
     }
 
     override fun commit(transaction: Transaction) {
-        val mergeStates = HashMap<UUID, MergeState>()
-        val created = times.now()
+        val updates = HashMap<UUID, MutableList<Payload<ByteArray>>>()
+        val updated = HashSet<UUID>()
+        val now = times.now()
         for (operation in transaction.operations) {
             when (operation) {
                 is Transaction.Operation.Add<*> -> {
                     for (holder in holders) {
                         val value = encode(holder = holder, operation = operation) ?: continue
-                        val mergeState = mergeStates.getOrPut(holder.key.id) {
-                            MergeState(
-                                deleted = emptySet(),
-                                picks = emptySet(),
-                                gives = emptyList(),
-                            )
+                        val payloads = updates.getOrPut(holder.key.id) {
+                            val src = dir.resolve("pointers.bin").inputStream().use { stream ->
+                                Pointers.getFile(stream = stream, dir = dir, id = holder.key.id)
+                            }
+                            val payloads = ArrayList<Payload<ByteArray>>()
+                            FileInputStream(src).use { stream ->
+                                stream.skip((stream.readInt() * 16).toLong()) // deleted
+                                (0 until stream.readInt()).forEach { _ ->
+                                    payloads.add(SyncStorageAlgorithms.readPayload(stream = stream))
+                                }
+                            }
+                            payloads
                         }
                         val payload = Payload(
                             id = ids.random(),
-                            created = created,
-                            updated = created,
+                            created = now,
+                            updated = now,
                             value = value,
                         )
-                        mergeStates[holder.key.id] = MergeState(
-                            deleted = mergeState.deleted,
-                            picks = emptySet(),
-                            gives = mergeState.gives + payload,
-                        )
+                        payloads.add(payload)
+                        updated.add(holder.key.id)
                         break
                     }
                 }
                 is Transaction.Operation.Delete<*> -> TODO("RealSyncStorages:commit($operation)")
             }
+        }
+        val mergeStates = HashMap<UUID, MergeState>()
+        for (id in updated) {
+            val gives = updates[id] ?: TODO()
+            mergeStates[id] = MergeState(
+                deleted = emptySet(), // todo
+                picks = emptySet(), // todo
+                gives = gives,
+            )
         }
         merge(mergeStates = mergeStates)
     }
