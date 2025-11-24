@@ -232,6 +232,27 @@ class RealSyncStorages private constructor(
         return null
     }
 
+    private fun <T : Any> getAll(
+        holder: TransformerHolder<T>,
+        payloads: List<Payload<ByteArray>>,
+        operation: Transaction.Operation.DeleteAll<*>,
+    ): Set<UUID> {
+        val deleted = HashSet<UUID>()
+        val condition = operation.condition as (Payload<T>) -> Boolean
+        for (payload in payloads) {
+            val decoded = Payload(
+                id = payload.id,
+                created = payload.created,
+                updated = payload.updated,
+                value = holder.transformer.decode(payload.value),
+            )
+            if (condition(decoded)) {
+                deleted.add(payload.id)
+            }
+        }
+        return deleted
+    }
+
     override fun commit(transaction: Transaction) {
         val locals = HashMap<UUID, MutableList<Payload<ByteArray>>>()
         val gives = HashMap<UUID, MutableList<Payload<ByteArray>>>()
@@ -296,6 +317,27 @@ class RealSyncStorages private constructor(
                         break
                     }
                 }
+                is Transaction.Operation.DeleteAll<*> -> {
+                    for (holder in holders) {
+                        if (holder.key != operation.key) continue
+                        val payloads = locals.getOrPut(holder.key.id) {
+                            val src = dir.resolve("pointers.bin").inputStream().use { stream ->
+                                Pointers.getFile(stream = stream, dir = dir, id = holder.key.id)
+                            }
+                            val payloads = ArrayList<Payload<ByteArray>>()
+                            FileInputStream(src).use { stream ->
+                                stream.skip((stream.readInt() * 16).toLong()) // deleted
+                                (0 until stream.readInt()).forEach { _ ->
+                                    payloads.add(SyncStorageAlgorithms.readPayload(stream = stream))
+                                }
+                            }
+                            payloads
+                        }
+                        deleted.getOrPut(holder.key.id, ::HashSet)
+                            .addAll(getAll(holder, payloads, operation))
+                        break
+                    }
+                }
                 is Transaction.Operation.Update<*> -> {
                     for (holder in holders) {
                         if (holder.key != operation.key) continue
@@ -322,7 +364,9 @@ class RealSyncStorages private constructor(
                         break
                     }
                 }
-                is Transaction.Operation.UpdateFirst<*> -> TODO("RealSyncStorages:commit($transaction)")
+                is Transaction.Operation.UpdateFirst<*> -> {
+                    TODO("RealSyncStorages:commit($transaction)")
+                }
             }
         }
         val mergeStates = HashMap<UUID, MergeState>()
