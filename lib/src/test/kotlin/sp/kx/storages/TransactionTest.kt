@@ -26,17 +26,21 @@ internal class TransactionTest {
             .add(Keys.Strings, "s01")
             .add(Keys.Strings, "s02")
             .add(Keys.Strings, "s03")
+            .add(Keys.Strings, "s91")
+            .add(Keys.Strings, "s92")
             .add(Keys.Durations, 100.seconds)
             .add(Keys.Durations, 101.seconds)
             .add(Keys.Durations, 102.seconds)
             .add(Keys.Durations, 103.seconds)
+            .add(Keys.Durations, 191.seconds)
+            .add(Keys.Durations, 192.seconds)
             .build()
         storages.commit(transaction = transaction)
         Keys.Strings.also { key ->
             val payloads = testSuite.storage(storages, key = key).payloads
             val values = payloads.map { it.value }
             testSuite.assertEquals(
-                expected = listOf("s00", "s01", "s02", "s03"),
+                expected = listOf("s00", "s01", "s02", "s03", "s91", "s92"),
                 actual = values,
             )
         }
@@ -44,7 +48,7 @@ internal class TransactionTest {
             val payloads = testSuite.storage(storages, key = key).payloads
             val values = payloads.map { it.value }
             testSuite.assertEquals(
-                expected = listOf(100.seconds, 101.seconds, 102.seconds, 103.seconds),
+                expected = listOf(100.seconds, 101.seconds, 102.seconds, 103.seconds, 191.seconds, 192.seconds),
                 actual = values,
             )
         }
@@ -57,10 +61,12 @@ internal class TransactionTest {
             .update(Keys.Strings, id = s1.id, value = "s01:updated")
             .deleteFirst(Keys.Strings) { it.value == "s03" }
             .add(Keys.Strings, "s09")
+            .deleteAll(Keys.Strings) { it.value.startsWith("s9") }
             .delete(Keys.Durations, id = d0.id)
             .update(Keys.Durations, id = d1.id, value = 111.seconds)
             .deleteFirst(Keys.Durations) { it.value == 103.seconds }
             .add(Keys.Durations, 109.seconds)
+            .deleteAll(Keys.Durations) { it.value > 190.seconds }
             .build()
         storages.commit(transaction = transaction)
         Keys.Strings.also { key ->
