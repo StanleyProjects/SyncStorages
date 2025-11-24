@@ -45,6 +45,14 @@ internal class SyncStoragesTestSuite(
         return storage.get(id = id) ?: error("No payload(${T::class.java}) $id!")
     }
 
+    inline fun <reified T : Comparable<T>> payload(storage: Storage<T>, condition: (Payload<T>) -> Boolean): Payload<T> {
+        return storage.payloads.firstOrNull(condition) ?: error("No payload(${T::class.java})!")
+    }
+
+    inline fun <reified T : Comparable<T>> payload(storages: MutableStorages, key: Storage.Key<T>, condition: (Payload<T>) -> Boolean): Payload<T> {
+        return storage(storages = storages, key = key).payloads.firstOrNull(condition) ?: error("No payload(${T::class.java})!")
+    }
+
     inline fun <reified T : Comparable<T>> assertEquals(expected: Payload<T>, actual: Payload<T>) {
         assertEquals(expected.id, actual.id, "Payload<${T::class.java.simpleName}>:id")
         assertEquals(expected.created, actual.created, "Payload<${T::class.java.simpleName}>:created")

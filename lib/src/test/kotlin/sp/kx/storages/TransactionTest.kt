@@ -48,10 +48,10 @@ internal class TransactionTest {
                 actual = values,
             )
         }
-        val s0 = testSuite.storage(storages, key = Keys.Strings).payloads.firstOrNull { it.value == "s00" } ?: error("No payload!")
-        val s1 = testSuite.storage(storages, key = Keys.Strings).payloads.firstOrNull { it.value == "s01" } ?: error("No payload!")
-        val d0 = testSuite.storage(storages, key = Keys.Durations).payloads.firstOrNull { it.value == 100.seconds } ?: error("No payload!")
-        val d1 = testSuite.storage(storages, key = Keys.Durations).payloads.firstOrNull { it.value == 101.seconds } ?: error("No payload!")
+        val s0 = testSuite.payload(storages, key = Keys.Strings) { it.value == "s00" }
+        val s1 = testSuite.payload(storages, key = Keys.Strings) { it.value == "s01" }
+        val d0 = testSuite.payload(storages, key = Keys.Durations) { it.value == 100.seconds }
+        val d1 = testSuite.payload(storages, key = Keys.Durations) { it.value == 101.seconds }
         transaction = Transaction.Builder()
             .delete(Keys.Strings, id = s0.id)
             .update(Keys.Strings, id = s1.id, value = "s01:updated")
@@ -166,6 +166,43 @@ internal class TransactionTest {
             storage = testSuite.storage(storages, key = Keys.Durations),
             expected = emptyList(),
         )
+    }
+
+    @Test
+    fun deleteAllTest(@TempDir dir: File) {
+        val testSuite = SyncStoragesTestSuite(dir = dir)
+        val builder = RealSyncStorages.Builder()
+            .add(Keys.Strings, Transformers.Strings)
+            .add(Keys.Durations, Transformers.Durations)
+        val storages = testSuite.storages(builder = builder)
+        testSuite.assertEquals(
+            storage = testSuite.storage(storages, key = Keys.Strings),
+            expected = emptyList(),
+        )
+        testSuite.assertEquals(
+            storage = testSuite.storage(storages, key = Keys.Durations),
+            expected = emptyList(),
+        )
+        var transaction = Transaction.Builder()
+            .add(Keys.Strings, "s00")
+            .add(Keys.Strings, "s01")
+            .add(Keys.Strings, "s02")
+            .add(Keys.Strings, "s10")
+            .add(Keys.Durations, 100.seconds)
+            .add(Keys.Durations, 101.seconds)
+            .add(Keys.Durations, 102.seconds)
+            .add(Keys.Durations, 110.seconds)
+            .build()
+        storages.commit(transaction = transaction)
+        check(testSuite.storage(storages, key = Keys.Strings).payloads.size == 4)
+        check(testSuite.storage(storages, key = Keys.Durations).payloads.size == 4)
+        transaction = Transaction.Builder()
+            .deleteAll(Keys.Strings) { it.value.startsWith("s0") }
+            .deleteAll(Keys.Durations) { it.value.inWholeSeconds < 110 }
+            .build()
+        storages.commit(transaction = transaction)
+        check(testSuite.storage(storages, key = Keys.Strings).payloads.single().value == "s10")
+        check(testSuite.storage(storages, key = Keys.Durations).payloads.single().value == 110.seconds)
     }
 
     @Test
