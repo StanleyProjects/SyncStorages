@@ -2,8 +2,8 @@ package sp.kx.storages
 
 import java.util.UUID
 
-internal class StoragesHolder<T : Any>(val storages: MutableStorages, type: Class<T>) {
-    val storage = storages[type] ?: error("No storage!")
+internal class StoragesHolder<T : Any>(val storages: MutableStorages, key: Storage.Key<T>) {
+    val storage = storages[key] ?: error("No storage!")
     val payloads = storage.payloads
     val first = payloads[0]
     val mid = payloads[payloads.size / 2]

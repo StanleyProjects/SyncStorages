@@ -20,19 +20,20 @@ internal open class FooState(
 
     init {
         val index = indices.incrementAndGet()
+        val key = Storage.Key(UUID(0, 0), Foo::class.java)
         holders = counts.associateWith { count ->
             val storages = RealSyncStorages.Builder()
-                .add(UUID(0, 0), Foo::class.java, FooTransformer)
+                .add(key = key, transformer = FooTransformer)
                 .build(
                     files = files.resolve("storages-$index-$count").also { check(it.mkdir()) },
                     hashes = hashes,
                     times = times,
                     ids = ids,
                 )
-            val storage = storages[Foo::class.java] ?: error(" No storage!")
+            val storage = storages[key] ?: error(" No storage!")
             val values = (0 until count).map(FooTransformer::value)
             storage.addAll(values = values)
-            StoragesHolder(storages, Foo::class.java)
+            StoragesHolder(storages = storages, key = key)
         }
     }
 
