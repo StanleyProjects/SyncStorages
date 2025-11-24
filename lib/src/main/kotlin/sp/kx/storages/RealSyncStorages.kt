@@ -217,9 +217,8 @@ class RealSyncStorages private constructor(
     private fun <T : Any> getFirst(
         holder: TransformerHolder<T>,
         payloads: List<Payload<ByteArray>>,
-        operation: Transaction.Operation.DeleteFirst<*>,
+        condition: (Payload<*>) -> Boolean,
     ): Payload<T>? {
-        val condition = operation.condition as (Payload<T>) -> Boolean
         for (payload in payloads) {
             val decoded = Payload(
                 id = payload.id,
@@ -310,7 +309,7 @@ class RealSyncStorages private constructor(
                             }
                             payloads
                         }
-                        val payload = getFirst(holder, payloads, operation)
+                        val payload = getFirst(holder, payloads, condition = operation.condition as (Payload<*>) -> Boolean)
                         if (payload != null) {
                             deleted.getOrPut(holder.key.id, ::HashSet).add(payload.id)
                         }
@@ -365,7 +364,32 @@ class RealSyncStorages private constructor(
                     }
                 }
                 is Transaction.Operation.UpdateFirst<*> -> {
-                    TODO("RealSyncStorages:commit($transaction)")
+                    for (holder in holders) {
+                        if (holder.key != operation.key) continue
+                        val payloads = locals.getOrPut(holder.key.id) {
+                            val src = dir.resolve("pointers.bin").inputStream().use { stream ->
+                                Pointers.getFile(stream = stream, dir = dir, id = holder.key.id)
+                            }
+                            val payloads = ArrayList<Payload<ByteArray>>()
+                            FileInputStream(src).use { stream ->
+                                stream.skip((stream.readInt() * 16).toLong()) // deleted
+                                (0 until stream.readInt()).forEach { _ ->
+                                    payloads.add(SyncStorageAlgorithms.readPayload(stream = stream))
+                                }
+                            }
+                            payloads
+                        }
+                        val payload = getFirst(holder, payloads, condition = operation.condition as (Payload<*>) -> Boolean)
+                        if (payload != null) {
+                            gives.getOrPut(holder.key.id, ::ArrayList) += Payload(
+                                id = payload.id,
+                                created = payload.created,
+                                updated = now,
+                                value = encode(holder = holder, value = operation.value),
+                            )
+                        }
+                        break
+                    }
                 }
             }
         }
