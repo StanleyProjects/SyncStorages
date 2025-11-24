@@ -247,4 +247,35 @@ internal class TransactionTest {
             )
         }
     }
+
+    @Test
+    fun updateFirstTest(@TempDir dir: File) {
+        val testSuite = SyncStoragesTestSuite(dir = dir)
+        val builder = RealSyncStorages.Builder()
+            .add(Keys.Strings, Transformers.Strings)
+            .add(Keys.Durations, Transformers.Durations)
+        val storages = testSuite.storages(builder = builder)
+        var transaction = Transaction.Builder()
+            .add(Keys.Strings, "s00")
+            .add(Keys.Strings, "s01")
+            .add(Keys.Strings, "s10")
+            .add(Keys.Durations, 100.seconds)
+            .add(Keys.Durations, 101.seconds)
+            .add(Keys.Durations, 110.seconds)
+            .build()
+        storages.commit(transaction = transaction)
+        transaction = Transaction.Builder()
+            .updateFirst(key = Keys.Strings, value = "s42") { it.value == "s01" }
+            .updateFirst(key = Keys.Durations, value = 142.seconds) { it.value == 101.seconds }
+            .build()
+        storages.commit(transaction = transaction)
+        testSuite.assertEquals(
+            expected = listOf("s00", "s42", "s10"),
+            actual = testSuite.storage(storages, key = Keys.Strings).payloads.map { it.value },
+        )
+        testSuite.assertEquals(
+            expected = listOf(100.seconds, 142.seconds, 110.seconds),
+            actual = testSuite.storage(storages, key = Keys.Durations).payloads.map { it.value },
+        )
+    }
 }
