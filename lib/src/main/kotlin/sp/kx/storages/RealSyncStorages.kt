@@ -236,21 +236,18 @@ class RealSyncStorages private constructor(
         val locals = HashMap<UUID, MutableList<Payload<ByteArray>>>()
         val gives = HashMap<UUID, MutableList<Payload<ByteArray>>>()
         val deleted = HashMap<UUID, MutableSet<UUID>>()
-        val updated = HashSet<UUID>()
         val now = times.now()
         for (operation in transaction.operations) {
             when (operation) {
                 is Transaction.Operation.Add<*> -> {
                     for (holder in holders) {
                         if (holder.key != operation.key) continue
-                        val value = encode(holder = holder, value = operation.value)
                         gives.getOrPut(holder.key.id, ::ArrayList) += Payload(
                             id = ids.random(),
                             created = now,
                             updated = now,
-                            value = value,
+                            value = encode(holder = holder, value = operation.value),
                         )
-                        updated.add(holder.key.id)
                         break
                     }
                 }
@@ -272,7 +269,6 @@ class RealSyncStorages private constructor(
                         }
                         if (payloads.any { it.id == operation.id }) {
                             deleted.getOrPut(holder.key.id, ::HashSet).add(operation.id)
-                            updated.add(holder.key.id)
                         }
                         break
                     }
@@ -296,8 +292,6 @@ class RealSyncStorages private constructor(
                         val payload = getFirst(holder, payloads, operation)
                         if (payload != null) {
                             deleted.getOrPut(holder.key.id, ::HashSet).add(payload.id)
-                            updated.add(holder.key.id)
-                            break
                         }
                         break
                     }
@@ -305,7 +299,6 @@ class RealSyncStorages private constructor(
                 is Transaction.Operation.Update<*> -> {
                     for (holder in holders) {
                         if (holder.key != operation.key) continue
-                        val value = encode(holder = holder, value = operation.value)
                         val payloads = locals.getOrPut(holder.key.id) {
                             val src = dir.resolve("pointers.bin").inputStream().use { stream ->
                                 Pointers.getFile(stream = stream, dir = dir, id = holder.key.id)
@@ -324,9 +317,8 @@ class RealSyncStorages private constructor(
                             id = payload.id,
                             created = payload.created,
                             updated = now,
-                            value = value,
+                            value = encode(holder = holder, value = operation.value),
                         )
-                        updated.add(holder.key.id)
                         break
                     }
                 }
@@ -334,11 +326,14 @@ class RealSyncStorages private constructor(
             }
         }
         val mergeStates = HashMap<UUID, MergeState>()
-        for (id in updated) {
-            mergeStates[id] = MergeState(
-                deleted = deleted[id].orEmpty(),
-                picks = emptySet(), // todo
-                gives = gives[id].orEmpty(),
+        for (holder in holders) {
+            val deleted = deleted[holder.key.id].orEmpty()
+            val gives = gives[holder.key.id].orEmpty()
+            if (deleted.size + gives.size == 0) continue
+            mergeStates[holder.key.id] = MergeState(
+                deleted = deleted,
+                picks = emptySet(),
+                gives = gives,
             )
         }
         merge(mergeStates = mergeStates)
