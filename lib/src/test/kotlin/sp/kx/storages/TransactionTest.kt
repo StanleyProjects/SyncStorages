@@ -26,32 +26,26 @@ internal class TransactionTest {
             .add(Keys.Strings, "s01")
             .add(Keys.Strings, "s02")
             .add(Keys.Strings, "s03")
+            .add(Keys.Strings, "s81")
             .add(Keys.Strings, "s91")
             .add(Keys.Strings, "s92")
             .add(Keys.Durations, 100.seconds)
             .add(Keys.Durations, 101.seconds)
             .add(Keys.Durations, 102.seconds)
             .add(Keys.Durations, 103.seconds)
+            .add(Keys.Durations, 181.seconds)
             .add(Keys.Durations, 191.seconds)
             .add(Keys.Durations, 192.seconds)
             .build()
         storages.commit(transaction = transaction)
-        Keys.Strings.also { key ->
-            val payloads = testSuite.storage(storages, key = key).payloads
-            val values = payloads.map { it.value }
-            testSuite.assertEquals(
-                expected = listOf("s00", "s01", "s02", "s03", "s91", "s92"),
-                actual = values,
-            )
-        }
-        Keys.Durations.also { key ->
-            val payloads = testSuite.storage(storages, key = key).payloads
-            val values = payloads.map { it.value }
-            testSuite.assertEquals(
-                expected = listOf(100.seconds, 101.seconds, 102.seconds, 103.seconds, 191.seconds, 192.seconds),
-                actual = values,
-            )
-        }
+        testSuite.assertEquals(
+            expected = listOf("s00", "s01", "s02", "s03", "s81", "s91", "s92"),
+            actual = testSuite.storage(storages, key = Keys.Strings).payloads.map { it.value },
+        )
+        testSuite.assertEquals(
+            expected = listOf(100, 101, 102, 103, 181, 191, 192).map { it.seconds },
+            actual = testSuite.storage(storages, key = Keys.Durations).payloads.map { it.value },
+        )
         val s0 = testSuite.payload(storages, key = Keys.Strings) { it.value == "s00" }
         val s1 = testSuite.payload(storages, key = Keys.Strings) { it.value == "s01" }
         val d0 = testSuite.payload(storages, key = Keys.Durations) { it.value == 100.seconds }
@@ -62,29 +56,23 @@ internal class TransactionTest {
             .deleteFirst(Keys.Strings) { it.value == "s03" }
             .add(Keys.Strings, "s09")
             .deleteAll(Keys.Strings) { it.value.startsWith("s9") }
+            .updateFirst(Keys.Strings, value = "s81:updated") { it.value == "s81" }
             .delete(Keys.Durations, id = d0.id)
             .update(Keys.Durations, id = d1.id, value = 111.seconds)
             .deleteFirst(Keys.Durations) { it.value == 103.seconds }
             .add(Keys.Durations, 109.seconds)
             .deleteAll(Keys.Durations) { it.value > 190.seconds }
+            .updateFirst(Keys.Durations, value = 1181.seconds) { it.value == 181.seconds }
             .build()
         storages.commit(transaction = transaction)
-        Keys.Strings.also { key ->
-            val payloads = testSuite.storage(storages, key = key).payloads
-            val values = payloads.map { it.value }
-            testSuite.assertEquals(
-                expected = listOf("s01:updated", "s02", "s09"),
-                actual = values,
-            )
-        }
-        Keys.Durations.also { key ->
-            val payloads = testSuite.storage(storages, key = key).payloads
-            val values = payloads.map { it.value }
-            testSuite.assertEquals(
-                expected = listOf(111.seconds, 102.seconds, 109.seconds),
-                actual = values,
-            )
-        }
+        testSuite.assertEquals(
+            expected = listOf("s01:updated", "s02", "s09", "s81:updated"),
+            actual = testSuite.storage(storages, key = Keys.Strings).payloads.map { it.value },
+        )
+        testSuite.assertEquals(
+            expected = listOf(111.seconds, 102.seconds, 109.seconds, 1181.seconds),
+            actual = testSuite.storage(storages, key = Keys.Durations).payloads.map { it.value },
+        )
     }
 
     @Test
