@@ -16,6 +16,13 @@ import java.util.UUID
 import kotlin.time.Duration.Companion.milliseconds
 
 internal object SyncStorageAlgorithms {
+    fun readPayloads(stream: InputStream, dst: MutableCollection<Payload<ByteArray>>) {
+        stream.skip((stream.readInt() * 16).toLong()) // deleted
+        (0 until stream.readInt()).forEach { _ ->
+            dst.add(readPayload(stream = stream))
+        }
+    }
+
     fun readPayload(stream: InputStream): Payload<ByteArray> {
         return Payload(
             id = stream.readUUID(),
