@@ -77,26 +77,6 @@ internal class MutableStorageTest {
     }
 
     @Test
-    fun updateTest(@TempDir dir: File) {
-        val testSuite = SyncStoragesTestSuite(dir = dir)
-        val builder = RealSyncStorages.Builder()
-            .add(Keys.Strings, Transformers.Strings)
-        val storages = testSuite.storages(builder = builder)
-        val storage = testSuite.storage(storages, key = Keys.Strings)
-        testSuite.assertEquals(storage, emptyList())
-        val p0 = testSuite.add(storage)
-        assertEquals(null, storage.update(UUID(42, 0), "foobarbaz"))
-        val expected = testSuite.update(storage = storage, id = p0.id, value = "${p0.value}:updated")
-        assertEquals(p0.id, expected.id)
-        assertEquals(p0.created, expected.created)
-        check(p0.created < expected.updated)
-        check(p0.updated < expected.updated)
-        check(p0.value != expected.value)
-        testSuite.assertEquals(expected = expected, actual = testSuite.payload(storage, p0.id))
-        testSuite.assertEquals(storage, listOf(expected))
-    }
-
-    @Test
     fun deleteTest(@TempDir dir: File) {
         val testSuite = SyncStoragesTestSuite(dir = dir)
         val builder = RealSyncStorages.Builder()
@@ -118,5 +98,32 @@ internal class MutableStorageTest {
         testSuite.delete(storage = storage, id = p0.id)
         assertEquals(null, storage[p0.id])
         testSuite.assertEquals(storage, emptyList())
+    }
+
+    @Test
+    fun updateTest(@TempDir dir: File) {
+        val testSuite = SyncStoragesTestSuite(dir = dir)
+        val builder = RealSyncStorages.Builder()
+            .add(Keys.Strings, Transformers.Strings)
+        val storages = testSuite.storages(builder = builder)
+        val storage = testSuite.storage(storages, key = Keys.Strings)
+        testSuite.assertEquals(storage, emptyList())
+        //
+        val u0 = testSuite.add(storage)
+        testSuite.assertEquals(expected = u0, actual = testSuite.payload(storage, u0.id))
+        testSuite.assertEquals(storage, listOf(u0))
+        testSuite.delete(storage, id = u0.id)
+        testSuite.assertEquals(storage, emptyList())
+        //
+        val p0 = testSuite.add(storage)
+        assertEquals(null, storage.update(UUID(42, 0), "foobarbaz"))
+        val expected = testSuite.update(storage = storage, id = p0.id, value = "${p0.value}:updated")
+        assertEquals(p0.id, expected.id)
+        assertEquals(p0.created, expected.created)
+        check(p0.created < expected.updated)
+        check(p0.updated < expected.updated)
+        check(p0.value != expected.value)
+        testSuite.assertEquals(expected = expected, actual = testSuite.payload(storage, p0.id))
+        testSuite.assertEquals(storage, listOf(expected))
     }
 }
