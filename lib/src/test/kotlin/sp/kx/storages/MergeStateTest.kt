@@ -1,6 +1,7 @@
 package sp.kx.storages
 
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.util.UUID
 import kotlin.time.Duration.Companion.milliseconds
@@ -38,5 +39,66 @@ internal class MergeStateTest {
         )
         val expected = 2048061532
         assertEquals(expected, issuer.hashCode())
+    }
+
+    @Test
+    fun equalsTest() {
+        val payload = Payload(
+            id = UUID(1, 0),
+            created = 1.milliseconds,
+            updated = 2.milliseconds,
+            value = byteArrayOf(4, 3, 2, 1),
+        )
+        assertTrue(
+            MergeState(
+                deleted = setOf(UUID(2, 0)),
+                picks = setOf(UUID(3, 0)),
+                gives = listOf(payload),
+            ) == MergeState(
+                deleted = setOf(UUID(2, 0)),
+                picks = setOf(UUID(3, 0)),
+                gives = listOf(payload),
+            ),
+        )
+        assertTrue(
+            MergeState(
+                deleted = setOf(),
+                picks = setOf(UUID(3, 0)),
+                gives = listOf(payload),
+            ) != MergeState(
+                deleted = setOf(UUID(2, 0)),
+                picks = setOf(UUID(3, 0)),
+                gives = listOf(payload),
+            ),
+        )
+        assertTrue(
+            MergeState(
+                deleted = setOf(UUID(2, 0)),
+                picks = setOf(UUID(3, 0)),
+                gives = listOf(payload),
+            ) != MergeState(
+                deleted = setOf(UUID(2, 0)),
+                picks = setOf(),
+                gives = listOf(payload),
+            ),
+        )
+        assertTrue(
+            MergeState(
+                deleted = setOf(UUID(2, 0)),
+                picks = setOf(UUID(3, 0)),
+                gives = listOf(payload),
+            ) != MergeState(
+                deleted = setOf(UUID(2, 0)),
+                picks = setOf(UUID(3, 0)),
+                gives = listOf(),
+            ),
+        )
+        assertTrue(
+            !MergeState(
+                deleted = setOf(UUID(2, 0)),
+                picks = setOf(UUID(3, 0)),
+                gives = listOf(payload),
+            ).equals(Unit),
+        )
     }
 }
