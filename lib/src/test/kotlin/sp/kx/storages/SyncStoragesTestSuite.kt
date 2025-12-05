@@ -8,7 +8,6 @@ import sp.kx.times.Times
 import java.io.File
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
-import kotlin.time.Duration
 
 internal class SyncStoragesTestSuite(
     private val dir: File,
@@ -25,16 +24,6 @@ internal class SyncStoragesTestSuite(
             times = times,
             ids = ids,
         )
-    }
-
-    @Deprecated(message = "storage(MutableStorages, Storage.Key)")
-    fun <T : Comparable<T>> storage(storages: MutableStorages, type: Class<T>): MutableStorage<T> {
-        val key = when (type) {
-            String::class.java -> Keys.Strings
-            Duration::class.java -> Keys.Durations
-            else -> error("No storage $type!")
-        } as Storage.Key<T>
-        return storages[key] ?: error("No storage $key!")
     }
 
     fun <T : Comparable<T>> storage(storages: MutableStorages, key: Storage.Key<T>): MutableStorage<T> {
