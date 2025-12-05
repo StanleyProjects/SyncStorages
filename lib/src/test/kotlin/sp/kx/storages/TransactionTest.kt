@@ -54,6 +54,7 @@ internal class TransactionTest {
             .delete(Keys.Strings, id = s0.id)
             .update(Keys.Strings, id = s1.id, value = "s01:updated")
             .deleteFirst(Keys.Strings) { it.value == "s03" }
+            .deleteFirst(Keys.Strings) { it.value == "unexpected" }
             .add(Keys.Strings, "s09")
             .deleteAll(Keys.Strings) { it.value.startsWith("s9") }
             .updateFirst(Keys.Strings, value = "s81:updated") { it.value == "s81" }
