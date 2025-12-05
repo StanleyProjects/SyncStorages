@@ -1,6 +1,7 @@
 package sp.kx.storages
 
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.util.UUID
 import kotlin.time.Duration.Companion.milliseconds
@@ -38,5 +39,66 @@ internal class CommitStateTest {
         )
         val expected = -936478655
         assertEquals(expected, issuer.hashCode())
+    }
+
+    @Test
+    fun equalsTest() {
+        val payload = Payload(
+            id = UUID(1, 0),
+            created = 1.milliseconds,
+            updated = 2.milliseconds,
+            value = byteArrayOf(4, 3, 2, 1),
+        )
+        assertTrue(
+            CommitState(
+                deleted = setOf(UUID(2, 0)),
+                gives = listOf(payload),
+                hash = byteArrayOf(4, 2),
+            ) == CommitState(
+                deleted = setOf(UUID(2, 0)),
+                gives = listOf(payload),
+                hash = byteArrayOf(4, 2),
+            ),
+        )
+        assertTrue(
+            CommitState(
+                deleted = setOf(),
+                gives = listOf(payload),
+                hash = byteArrayOf(4, 2),
+            ) != CommitState(
+                deleted = setOf(UUID(2, 0)),
+                gives = listOf(payload),
+                hash = byteArrayOf(4, 2),
+            ),
+        )
+        assertTrue(
+            CommitState(
+                deleted = setOf(UUID(2, 0)),
+                gives = listOf(),
+                hash = byteArrayOf(4, 2),
+            ) != CommitState(
+                deleted = setOf(UUID(2, 0)),
+                gives = listOf(payload),
+                hash = byteArrayOf(4, 2),
+            ),
+        )
+        assertTrue(
+            CommitState(
+                deleted = setOf(UUID(2, 0)),
+                gives = listOf(payload),
+                hash = byteArrayOf(),
+            ) != CommitState(
+                deleted = setOf(UUID(2, 0)),
+                gives = listOf(payload),
+                hash = byteArrayOf(4, 2),
+            ),
+        )
+        assertTrue(
+            !CommitState(
+                deleted = setOf(UUID(2, 0)),
+                gives = listOf(payload),
+                hash = byteArrayOf(4, 2),
+            ).equals(Unit),
+        )
     }
 }
