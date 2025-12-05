@@ -29,4 +29,36 @@ internal open class UpdateBenchmark : Benchmarks() {
         val updated = holder.storage.update(id = holder.first.id, value = value)
         hole.consume(updated)
     }
+
+    @Benchmark
+    fun updateMidBenchmark(hole: Blackhole, state: FooState) {
+        val holder = state.holders[count] ?: error("No holder!")
+        val value = FooTransformer.value(index = -1)
+        val updated = holder.storage.update(id = holder.mid.id, value = value)
+        hole.consume(updated)
+    }
+
+    @Benchmark
+    fun updateLastBenchmark(hole: Blackhole, state: FooState) {
+        val holder = state.holders[count] ?: error("No holder!")
+        val value = FooTransformer.value(index = -1)
+        val updated = holder.storage.update(id = holder.last.id, value = value)
+        hole.consume(updated)
+    }
+
+    @Benchmark
+    fun updateRandomBenchmark(hole: Blackhole, state: FooState) {
+        val holder = state.holders[count] ?: error("No holder!")
+        val value = FooTransformer.value(index = -1)
+        val updated = holder.storage.update(id = holder.random.id, value = value)
+        hole.consume(updated)
+    }
+
+    @Benchmark
+    fun updateNoneBenchmark(hole: Blackhole, state: FooState) {
+        val holder = state.holders[count] ?: error("No holder!")
+        val value = FooTransformer.value(index = -1)
+        val updated = holder.storage.update(id = holder.none, value = value)
+        hole.consume(updated)
+    }
 }
