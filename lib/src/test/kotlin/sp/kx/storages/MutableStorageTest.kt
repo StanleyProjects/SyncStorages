@@ -30,6 +30,13 @@ internal class MutableStorageTest {
         val storages = testSuite.storages(builder = builder)
         val storage = testSuite.storage(storages, key = Keys.Strings)
         testSuite.assertEquals(storage, emptyList())
+        //
+        val u0 = testSuite.add(storage)
+        testSuite.assertEquals(expected = u0, actual = testSuite.payload(storage, u0.id))
+        testSuite.assertEquals(storage, listOf(u0))
+        testSuite.delete(storage, id = u0.id)
+        testSuite.assertEquals(storage, emptyList())
+        //
         val p0 = testSuite.add(storage)
         testSuite.assertEquals(expected = p0, actual = testSuite.payload(storage, p0.id))
         testSuite.assertEquals(storage, listOf(p0))
