@@ -55,13 +55,24 @@ internal class MutableStorageTest {
         val storages = testSuite.storages(builder = builder)
         val storage = testSuite.storage(storages, key = Keys.Strings)
         testSuite.assertEquals(storage, emptyList())
-        val values = (0..9).map { "value:$it" }
+        //
+        val u0 = testSuite.add(storage)
+        testSuite.assertEquals(expected = u0, actual = testSuite.payload(storage, u0.id))
+        testSuite.assertEquals(storage, listOf(u0))
+        testSuite.delete(storage, id = u0.id)
+        testSuite.assertEquals(storage, emptyList())
+        //
+        val p0 = testSuite.add(storage)
+        testSuite.assertEquals(expected = p0, actual = testSuite.payload(storage, p0.id))
+        testSuite.assertEquals(storage, listOf(p0))
+        //
+        val values = (0..9).map { "values:$it" }
         val actual = storage.addAll(values = values)
         assertEquals(values.size, actual.size)
         actual.forEach { payload ->
             testSuite.assertEquals(expected = payload, actual = testSuite.payload(storage, payload.id))
         }
-        testSuite.assertEquals(storage, actual)
+        testSuite.assertEquals(storage, expected = actual + p0)
         assertEquals(null, storage[UUID(42, 0)])
     }
 
