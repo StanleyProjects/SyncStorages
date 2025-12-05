@@ -27,4 +27,28 @@ internal open class DeleteBenchmark : Benchmarks() {
         val holder = state.holders[count] ?: error("No holder!")
         hole.consume(holder.storage.delete(id = holder.first.id))
     }
+
+    @Benchmark
+    fun deleteMidBenchmark(hole: Blackhole, state: FooState) {
+        val holder = state.holders[count] ?: error("No holder!")
+        hole.consume(holder.storage.delete(id = holder.mid.id))
+    }
+
+    @Benchmark
+    fun deleteLastBenchmark(hole: Blackhole, state: FooState) {
+        val holder = state.holders[count] ?: error("No holder!")
+        hole.consume(holder.storage.delete(id = holder.last.id))
+    }
+
+    @Benchmark
+    fun deleteRandomBenchmark(hole: Blackhole, state: FooState) {
+        val holder = state.holders[count] ?: error("No holder!")
+        hole.consume(holder.storage.delete(id = holder.random.id))
+    }
+
+    @Benchmark
+    fun deleteNoneBenchmark(hole: Blackhole, state: FooState) {
+        val holder = state.holders[count] ?: error("No holder!")
+        hole.consume(holder.storage.delete(id = holder.none))
+    }
 }
