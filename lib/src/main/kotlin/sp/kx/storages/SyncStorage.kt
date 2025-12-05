@@ -19,7 +19,7 @@ internal class SyncStorage<T : Any>(
     override val payloads: List<Payload<T>>
         get() {
             return streamer.reader().use { stream ->
-                stream.skip((stream.readInt() * 16).toLong()) // deleted
+                stream.skip(stream.readInt() * 16L) // deleted
                 (0 until stream.readInt()).map { _ ->
                     SyncStorageAlgorithms.readPayload(
                         stream = stream,
@@ -114,8 +114,7 @@ internal class SyncStorage<T : Any>(
             }
         }
         for (index in payloads.indices) {
-            val it = payloads[index]
-            if (it.id == id) {
+            if (payloads[index].id == id) {
                 payloads.removeAt(index)
                 deleted.add(id)
                 streamer.writer().use { stream ->
@@ -168,18 +167,17 @@ internal class SyncStorage<T : Any>(
 
     override fun get(id: UUID): Payload<T>? {
         streamer.reader().use { stream ->
-            stream.skip((stream.readInt() * 16).toLong()) // deleted
+            stream.skip(stream.readInt() * 16L) // deleted
             for (index in 0 until stream.readInt()) {
-                if (id != stream.readUUID()) {
-                    stream.skip(16)
-                    stream.skip(stream.readInt().toLong())
-                    continue
+                if (id == stream.readUUID()) {
+                    return SyncStorageAlgorithms.readPayload(
+                        stream = stream,
+                        transformer = transformer,
+                        id = id,
+                    )
                 }
-                return SyncStorageAlgorithms.readPayload(
-                    stream = stream,
-                    transformer = transformer,
-                    id = id,
-                )
+                stream.skip(16)
+                stream.skip(stream.readInt().toLong())
             }
         }
         return null

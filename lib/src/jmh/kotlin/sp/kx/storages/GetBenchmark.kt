@@ -15,9 +15,9 @@ import java.util.concurrent.TimeUnit
 @Fork(value = 1, warmups = 0)
 @Warmup(iterations = 0)
 @Measurement(iterations = 1, time = 1, timeUnit = TimeUnit.SECONDS)
-@BenchmarkMode(Mode.AverageTime)
+@BenchmarkMode(Mode.SingleShotTime)
 @OutputTimeUnit(TimeUnit.MILLISECONDS)
-@Threads(Threads.MAX)
+@Threads(1)
 internal open class GetBenchmark : Benchmarks() {
     @Param(value = ["128", "512", "1024", "8192"])
     var count: Int = 0
@@ -77,8 +77,6 @@ internal open class GetBenchmark : Benchmarks() {
     @Benchmark
     fun getNoneBenchmark(hole: Blackhole, state: FooState) {
         val holder = state.holders[count] ?: error("No holder!")
-        val actual = holder.storage[holder.none]
-        check(actual == null)
-        hole.consume(holder.none)
+        hole.consume(holder.storage[holder.none])
     }
 }
